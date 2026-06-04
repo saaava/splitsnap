@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "97443520596",
+    "project_id": "splitsnap-b97f6",
+    "storage_bucket": "splitsnap-b97f6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:97443520596:android:e55379e1bd9f33a73f8dc1",
+        "android_client_info": {
+          "package_name": "com.example.splitsnap"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "97443520596-oq39e492qlijuk7jp3qtobqjbsmjm607.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZQZCW98zW6k7-qwZgUvmwTHgKA12KR4c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "97443520596-oq39e492qlijuk7jp3qtobqjbsmjm607.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:97443520596:android:1b92b17ad54a58d43f8dc1",
+        "android_client_info": {
+          "package_name": "com.splitsnap.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "97443520596-oq39e492qlijuk7jp3qtobqjbsmjm607.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZQZCW98zW6k7-qwZgUvmwTHgKA12KR4c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "97443520596-oq39e492qlijuk7jp3qtobqjbsmjm607.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
