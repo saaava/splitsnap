@@ -28,6 +28,7 @@ class SplitSnapApp extends StatelessWidget {
   }
 }
 
+/// Otomatis redirect berdasarkan status login Firebase
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -36,18 +37,24 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        // Masih loading
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
+            backgroundColor: AppColors.background,
             body: Center(
-              child: CircularProgressIndicator(),
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
+              ),
             ),
           );
         }
 
+        // Sudah login (email/password ATAU Google) → Home
         if (snapshot.hasData && snapshot.data != null) {
           return const HomeScreen();
         }
 
+        // Belum login → Login screen
         return const LoginScreen();
       },
     );

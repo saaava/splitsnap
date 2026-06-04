@@ -52,11 +52,20 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDZQZCW98zW6k7-qwZgUvmwTHgKA12KR4c',
-    appId: '1:97443520596:android:e55379e1bd9f33a73f8dc1',
+    appId: '1:97443520596:android:1b92b17ad54a58d43f8dc1',
     messagingSenderId: '97443520596',
     projectId: 'splitsnap-b97f6',
     storageBucket: 'splitsnap-b97f6.firebasestorage.app',
+    androidClientId: '97443520596-ae470r2s4skf4av22fbthf69nkp9igub.apps.googleusercontent.com',
   );
+
+  // static const FirebaseOptions android = FirebaseOptions(
+  //   apiKey: 'AIzaSyDZQZCW98zW6k7-qwZgUvmwTHgKA12KR4c',
+  //   appId: '1:97443520596:android:e55379e1bd9f33a73f8dc1',
+  //   messagingSenderId: '97443520596',
+  //   projectId: 'splitsnap-b97f6',
+  //   storageBucket: 'splitsnap-b97f6.firebasestorage.app',
+  // );
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBdwF8_SbJUz9SfScRy8f410KDWVIY2RHw',

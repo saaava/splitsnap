@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -45,6 +46,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+
+      if (!mounted) return;
+
+      // Tampilkan sukses lalu navigate ke Login
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Akun berhasil dibuat! Silakan login.',
+            style: GoogleFonts.poppins(fontSize: 13),
+          ),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Navigate ke Login, hapus semua route sebelumnya
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     } finally {
@@ -66,7 +87,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 32),
-
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Column(
@@ -90,25 +110,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 28),
-
                     if (_errorMessage != null) _buildErrorBanner(),
-
                     Form(
                       key: _formKey,
                       child: Column(
                         children: [
                           _buildTextField(
                             controller: _fullNameController,
-                            hint: 'Lovella',
+                            hint: 'Nama lengkap',
                             label: 'Full Name',
                             icon: Icons.person_outline,
                             validator: (v) =>
                                 v == null || v.isEmpty ? 'Nama wajib diisi' : null,
                           ),
                           const SizedBox(height: 14),
-
                           _buildTextField(
                             controller: _emailController,
                             hint: 'name@example.com',
@@ -122,7 +138,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             },
                           ),
                           const SizedBox(height: 14),
-
                           _buildTextField(
                             controller: _phoneController,
                             hint: '0838-8476-4755',
@@ -133,7 +148,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 v == null || v.isEmpty ? 'Nomor telepon wajib diisi' : null,
                           ),
                           const SizedBox(height: 14),
-
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
@@ -154,8 +168,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   color: AppColors.textHint,
                                   size: 20,
                                 ),
-                                onPressed: () =>
-                                    setState(() => _obscurePassword = !_obscurePassword),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
                               ),
                             ),
                             validator: (v) {
@@ -164,7 +178,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               return null;
                             },
                           ),
-
                           const SizedBox(height: 28),
                           SizedBox(
                             width: double.infinity,
@@ -197,7 +210,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                             ),
                           ),
-
                           const SizedBox(height: 20),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -210,7 +222,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () => Navigator.pop(context),
+                                onTap: () => Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const LoginScreen()),
+                                  (route) => false,
+                                ),
                                 child: Text(
                                   'Sign in',
                                   style: GoogleFonts.poppins(

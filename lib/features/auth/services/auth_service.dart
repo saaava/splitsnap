@@ -3,16 +3,16 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
-  // Stream user state
   Stream<User?> get userStream => _auth.authStateChanges();
-
-  // Cek user saat ini
   User? get currentUser => _auth.currentUser;
 
   // ─── Register dengan Email & Password ───────────────────────────────────────
-  Future<UserCredential?> registerWithEmail({
+  // PENTING: setelah register, langsung sign out supaya user harus login manual
+  Future<void> registerWithEmail({
     required String fullName,
     required String email,
     required String password,
@@ -27,7 +27,8 @@ class AuthService {
       await credential.user?.updateDisplayName(fullName);
       await credential.user?.reload();
 
-      return credential;
+      // Sign out supaya tidak auto-login, user harus login manual
+      await _auth.signOut();
     } on FirebaseAuthException catch (e) {
       throw _handleFirebaseError(e);
     }
@@ -51,17 +52,17 @@ class AuthService {
   // ─── Login dengan Google ─────────────────────────────────────────────────────
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // Sign out dulu biar selalu muncul picker akun
+      // Sign out google dulu supaya selalu muncul account picker
       await _googleSignIn.signOut();
 
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null; // User cancel / dismiss
+      if (googleUser == null) return null; // User cancel
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
 
       if (googleAuth.idToken == null) {
-        throw 'Gagal mendapatkan token Google. Pastikan SHA-1 sudah didaftarkan di Firebase Console.';
+        throw 'idToken null — pastikan SHA-1 fingerprint sudah didaftarkan di Firebase Console > Project Settings > Your Apps > Android App > Add Fingerprint';
       }
 
       final credential = GoogleAuthProvider.credential(
@@ -74,7 +75,7 @@ class AuthService {
       throw _handleFirebaseError(e);
     } catch (e) {
       if (e is String) rethrow;
-      throw 'Gagal login dengan Google: $e';
+      throw 'Google Sign In error: $e';
     }
   }
 
@@ -88,7 +89,7 @@ class AuthService {
   String _handleFirebaseError(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':
-        return 'Email sudah terdaftar. Gunakan email lain.';
+        return 'Email sudah terdaftar. Silakan login.';
       case 'invalid-email':
         return 'Format email tidak valid.';
       case 'weak-password':
@@ -103,8 +104,10 @@ class AuthService {
         return 'Terlalu banyak percobaan. Coba lagi nanti.';
       case 'network-request-failed':
         return 'Gagal terhubung ke internet.';
+      case 'operation-not-allowed':
+        return 'Metode login ini belum diaktifkan di Firebase Console.';
       default:
-        return 'Terjadi kesalahan: ${e.message}';
+        return 'Error [${e.code}]: ${e.message}';
     }
   }
 }
