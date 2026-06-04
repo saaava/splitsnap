@@ -5,10 +5,13 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
+  // Stream user state
   Stream<User?> get userStream => _auth.authStateChanges();
 
+  // Cek user saat ini
   User? get currentUser => _auth.currentUser;
 
+  // ─── Register dengan Email & Password ───────────────────────────────────────
   Future<UserCredential?> registerWithEmail({
     required String fullName,
     required String email,
@@ -20,6 +23,7 @@ class AuthService {
         password: password,
       );
 
+      // Update display name
       await credential.user?.updateDisplayName(fullName);
       await credential.user?.reload();
 
@@ -29,6 +33,7 @@ class AuthService {
     }
   }
 
+  // ─── Login dengan Email & Password ──────────────────────────────────────────
   Future<UserCredential?> loginWithEmail({
     required String email,
     required String password,
@@ -43,13 +48,21 @@ class AuthService {
     }
   }
 
+  // ─── Login dengan Google ─────────────────────────────────────────────────────
   Future<UserCredential?> signInWithGoogle() async {
     try {
+      // Sign out dulu biar selalu muncul picker akun
+      await _googleSignIn.signOut();
+
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null; // User cancel
+      if (googleUser == null) return null; // User cancel / dismiss
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
+
+      if (googleAuth.idToken == null) {
+        throw 'Gagal mendapatkan token Google. Pastikan SHA-1 sudah didaftarkan di Firebase Console.';
+      }
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
@@ -60,15 +73,18 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       throw _handleFirebaseError(e);
     } catch (e) {
-      throw 'Gagal login dengan Google. Coba lagi.';
+      if (e is String) rethrow;
+      throw 'Gagal login dengan Google: $e';
     }
   }
 
+  // ─── Logout ──────────────────────────────────────────────────────────────────
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
   }
 
+  // ─── Handle Firebase Error ───────────────────────────────────────────────────
   String _handleFirebaseError(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':

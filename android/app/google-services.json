@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "97443520596-7ottjav8isopgc6islqgte6743lvmma9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.splitsnap",
+            "certificate_hash": "4fe76e621cf260f5e55aa76ca9e2ac889bc079a2"
+          }
+        },
+        {
           "client_id": "97443520596-oq39e492qlijuk7jp3qtobqjbsmjm607.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +37,13 @@
             {
               "client_id": "97443520596-oq39e492qlijuk7jp3qtobqjbsmjm607.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "97443520596-mqq921ave38cotoo73j4tgdc6acehlhc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.splitsnap"
+              }
             }
           ]
         }
@@ -58,6 +73,13 @@
             {
               "client_id": "97443520596-oq39e492qlijuk7jp3qtobqjbsmjm607.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "97443520596-mqq921ave38cotoo73j4tgdc6acehlhc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.splitsnap"
+              }
             }
           ]
         }
