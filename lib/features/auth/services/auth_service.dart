@@ -3,7 +3,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+  static final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   Stream<User?> get userStream => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
@@ -40,10 +42,8 @@ class AuthService {
           password: password,
         );
       } on FirebaseAuthException catch (e) {
-        if (i < 2 &&
-            (e.code == 'user-not-found' ||
-                e.code == 'invalid-credential' ||
-                e.code == 'network-request-failed')) {
+        // Retry HANYA untuk masalah network, bukan salah credential
+        if (i < 2 && e.code == 'network-request-failed') {
           await Future.delayed(Duration(seconds: i + 1));
           continue;
         }
@@ -56,8 +56,6 @@ class AuthService {
   // ─── Login dengan Google ─────────────────────────────────────────────────────
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // Jangan signOut dulu, langsung signIn
-      // signOut sebelumnya menyebabkan crash di Google Play Services
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
