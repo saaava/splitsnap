@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:splitsnap/core/theme/app_theme.dart';
@@ -20,28 +21,27 @@ class _HomeScreenState extends State<HomeScreen> {
   User? _user;
   int _selectedIndex = 0;
 
-  // Data dummy transaksi terbaru
   final List<Map<String, dynamic>> _recentTransactions = [
     {
       'name': 'Indomaret',
       'amount': 'Rp. 35.000,00',
-      'icon': Icons.shopping_bag_outlined,
-      'color': Color(0xFFE8F5E9),
-      'iconColor': Color(0xFF2E7D32),
+      'icon': Icons.shopping_basket_outlined,
+      'color': Color(0xFFFFEBEE),
+      'iconColor': Color(0xFF6B0F2B),
     },
     {
       'name': 'Warung Bu Julak',
       'amount': 'Rp. 15.000,00',
-      'icon': Icons.restaurant_outlined,
-      'color': Color(0xFFFFF3E0),
-      'iconColor': Color(0xFFE65100),
+      'icon': Icons.storefront_outlined,
+      'color': Color(0xFFFFEBEE),
+      'iconColor': Color(0xFF6B0F2B),
     },
     {
       'name': 'Kopi Kampus',
       'amount': 'Rp. 35.000,00',
       'icon': Icons.local_cafe_outlined,
-      'color': Color(0xFFEDE7F6),
-      'iconColor': Color(0xFF4527A0),
+      'color': Color(0xFFFFEBEE),
+      'iconColor': Color(0xFF6B0F2B),
     },
   ];
 
@@ -76,86 +76,107 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildTopBar(),
-              _buildLogoArea(),
-              _buildMenuGrid(),
-              _buildRecentTransactions(),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNav(),
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      backgroundColor: const Color(0xFFF8F4F5),
+      body: Column(
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${_getGreeting()}, ${_displayName} 👋',
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Text(
-                'Kamu punya 3 tag. belum lns. hari ini',
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          GestureDetector(
-            onTap: _logout,
-            child: CircleAvatar(
-              radius: 20,
-              backgroundColor: AppColors.primary.withOpacity(0.1),
-              child: Text(
-                _displayName.isNotEmpty ? _displayName[0].toUpperCase() : 'U',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                ),
+          _buildHeader(),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildMenuGrid(),
+                  _buildRecentTransactions(),
+                  const SizedBox(height: 80),
+                ],
               ),
             ),
           ),
         ],
       ),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  Widget _buildLogoArea() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(16),
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Color(0xFF6B0F2B),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
-        child: Text(
-          'splitSnap',
-          style: GoogleFonts.poppins(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-            letterSpacing: 0.5,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${_getGreeting()}, $_displayName 👋',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        'Kamu punya 2 tagihan belum lunas hari ini',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.white60,
+                        ),
+                      ),
+                    ],
+                  ),
+                  GestureDetector(
+                    onTap: _logout,
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      child: Text(
+                        _displayName.isNotEmpty
+                            ? _displayName[0].toUpperCase()
+                            : 'U',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'SplitSnap',
+                    style: GoogleFonts.poppins(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -168,9 +189,9 @@ class _HomeScreenState extends State<HomeScreen> {
         'label': 'Scan Struk',
         'icon': Icons.camera_alt_outlined,
         'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ScanScreen()),
-        ),
+              context,
+              MaterialPageRoute(builder: (_) => const ScanScreen()),
+            ),
       },
       {
         'label': 'Dompet',
@@ -181,22 +202,22 @@ class _HomeScreenState extends State<HomeScreen> {
         'label': 'Gabung Room',
         'icon': Icons.group_add_outlined,
         'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const JoinRoomScreen()),
-        ),
+              context,
+              MaterialPageRoute(builder: (_) => const JoinRoomScreen()),
+            ),
       },
       {
         'label': 'Riwayat',
         'icon': Icons.history_rounded,
         'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const HistoryScreen()),
-        ),
+              context,
+              MaterialPageRoute(builder: (_) => const HistoryScreen()),
+            ),
       },
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -204,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisCount: 2,
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
-          childAspectRatio: 1.4,
+          childAspectRatio: 1.5,
         ),
         itemCount: menus.length,
         itemBuilder: (context, index) {
@@ -217,9 +238,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.06),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
@@ -230,12 +251,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.08),
+                      color: const Color(0xFFFFEBEE),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       menu['icon'] as IconData,
-                      color: AppColors.primary,
+                      color: const Color(0xFF6B0F2B),
                       size: 24,
                     ),
                   ),
@@ -245,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
+                      color: const Color(0xFF1A0A0F),
                     ),
                   ),
                 ],
@@ -259,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildRecentTransactions() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Column(
         children: [
           Row(
@@ -270,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: const Color(0xFF1A0A0F),
                 ),
               ),
               GestureDetector(
@@ -283,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.primary,
+                    color: const Color(0xFF6B0F2B),
                   ),
                 ),
               ),
@@ -294,21 +315,19 @@ class _HomeScreenState extends State<HomeScreen> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _recentTransactions.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final tx = _recentTransactions[index];
               return Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
+                    horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.04),
-                      blurRadius: 8,
+                      blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
                   ],
@@ -330,28 +349,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        tx['name'] as String,
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tx['name'] as String,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF1A0A0F),
+                            ),
+                          ),
+                          Text(
+                            tx['amount'] as String,
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: const Color(0xFF6B4A55),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Text(
-                      tx['amount'] as String,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(
+                    const Icon(
                       Icons.chevron_right,
-                      color: AppColors.textHint,
-                      size: 18,
+                      color: Color(0xFFAA8899),
+                      size: 20,
                     ),
                   ],
                 ),
@@ -364,74 +386,52 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBottomNav() {
-    final items = [
-      {'icon': Icons.home_rounded, 'label': 'Home'},
-      {'icon': Icons.receipt_long_rounded, 'label': 'Struk'},
-      {'icon': Icons.person_outline_rounded, 'label': 'Profil'},
-    ];
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, -3),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+        child: SizedBox(
+          height: 60,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(items.length, (index) {
-              final isSelected = _selectedIndex == index;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedIndex = index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary.withOpacity(0.08)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        items[index]['icon'] as IconData,
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textHint,
-                        size: 24,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        items[index]['label'] as String,
-                        style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                          color: isSelected
-                              ? AppColors.primary
-                              : AppColors.textHint,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
+            children: [
+              _bottomNavItem(Icons.receipt_long_rounded, 0),
+              _bottomNavItem(Icons.home_rounded, 1),
+              _bottomNavItem(Icons.person_outline_rounded, 2),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomNavItem(IconData icon, int index) {
+    final isSelected = _selectedIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedIndex = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF6B0F2B).withOpacity(0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon,
+          color: isSelected
+              ? const Color(0xFF6B0F2B)
+              : const Color(0xFFAA8899),
+          size: 26,
         ),
       ),
     );
