@@ -58,6 +58,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "97443520596-7h82bv7qh7549a6243950uajkek4emi1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.splitsnap.app",
+            "certificate_hash": "0640660356ac9b18d77ac81f5227a15e1eb90679"
+          }
+        },
+        {
           "client_id": "97443520596-ae470r2s4skf4av22fbthf69nkp9igub.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

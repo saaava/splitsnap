@@ -49,7 +49,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
 
-      // Tampilkan sukses lalu navigate ke Login
+      // SignOut di sini setelah register selesai sempurna
+      await _authService.signOut();
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -61,7 +65,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
 
-      // Navigate ke Login, hapus semua route sebelumnya
+      // Tunggu sebentar supaya Firebase benar-benar selesai signOut
+      await Future.delayed(const Duration(seconds: 2));
+
+      if (!mounted) return;
+
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
@@ -121,8 +129,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             hint: 'Nama lengkap',
                             label: 'Full Name',
                             icon: Icons.person_outline,
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+                            validator: (v) => v == null || v.isEmpty
+                                ? 'Nama wajib diisi'
+                                : null,
                           ),
                           const SizedBox(height: 14),
                           _buildTextField(
@@ -132,8 +141,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             icon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
                             validator: (v) {
-                              if (v == null || v.isEmpty) return 'Email wajib diisi';
-                              if (!v.contains('@')) return 'Format email tidak valid';
+                              if (v == null || v.isEmpty)
+                                return 'Email wajib diisi';
+                              if (!v.contains('@'))
+                                return 'Format email tidak valid';
                               return null;
                             },
                           ),
@@ -144,8 +155,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             label: 'Telp',
                             icon: Icons.phone_outlined,
                             keyboardType: TextInputType.phone,
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Nomor telepon wajib diisi' : null,
+                            validator: (v) => v == null || v.isEmpty
+                                ? 'Nomor telepon wajib diisi'
+                                : null,
                           ),
                           const SizedBox(height: 14),
                           TextFormField(
@@ -169,12 +181,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   size: 20,
                                 ),
                                 onPressed: () => setState(
-                                    () => _obscurePassword = !_obscurePassword),
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
                               ),
                             ),
                             validator: (v) {
-                              if (v == null || v.isEmpty) return 'Password wajib diisi';
-                              if (v.length < 6) return 'Password minimal 6 karakter';
+                              if (v == null || v.isEmpty)
+                                return 'Password wajib diisi';
+                              if (v.length < 6)
+                                return 'Password minimal 6 karakter';
                               return null;
                             },
                           ),
@@ -225,7 +240,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 onTap: () => Navigator.pushAndRemoveUntil(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (_) => const LoginScreen()),
+                                    builder: (_) => const LoginScreen(),
+                                  ),
                                   (route) => false,
                                 ),
                                 child: Text(

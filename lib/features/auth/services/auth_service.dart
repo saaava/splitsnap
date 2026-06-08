@@ -3,15 +3,12 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
 
   Stream<User?> get userStream => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
 
   // ─── Register dengan Email & Password ───────────────────────────────────────
-  // PENTING: setelah register, langsung sign out supaya user harus login manual
   Future<void> registerWithEmail({
     required String fullName,
     required String email,
@@ -23,12 +20,9 @@ class AuthService {
         password: password,
       );
 
-      // Update display name
       await credential.user?.updateDisplayName(fullName);
       await credential.user?.reload();
-
-      // Sign out supaya tidak auto-login, user harus login manual
-      await _auth.signOut();
+      // TIDAK signOut di sini, signOut dilakukan di register_screen
     } on FirebaseAuthException catch (e) {
       throw _handleFirebaseError(e);
     }
@@ -39,30 +33,39 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    try {
-      return await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } on FirebaseAuthException catch (e) {
-      throw _handleFirebaseError(e);
+    for (int i = 0; i < 3; i++) {
+      try {
+        return await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } on FirebaseAuthException catch (e) {
+        if (i < 2 &&
+            (e.code == 'user-not-found' ||
+                e.code == 'invalid-credential' ||
+                e.code == 'network-request-failed')) {
+          await Future.delayed(Duration(seconds: i + 1));
+          continue;
+        }
+        throw _handleFirebaseError(e);
+      }
     }
+    throw 'Login gagal, coba lagi.';
   }
 
   // ─── Login dengan Google ─────────────────────────────────────────────────────
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // Sign out google dulu supaya selalu muncul account picker
-      await _googleSignIn.signOut();
-
+      // Jangan signOut dulu, langsung signIn
+      // signOut sebelumnya menyebabkan crash di Google Play Services
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null; // User cancel
+      if (googleUser == null) return null;
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
 
       if (googleAuth.idToken == null) {
-        throw 'idToken null — pastikan SHA-1 fingerprint sudah didaftarkan di Firebase Console > Project Settings > Your Apps > Android App > Add Fingerprint';
+        throw 'Google Sign In gagal: idToken null. Pastikan SHA-1 sudah didaftarkan di Firebase.';
       }
 
       final credential = GoogleAuthProvider.credential(

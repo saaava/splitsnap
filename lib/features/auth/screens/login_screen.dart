@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../services/auth_service.dart';
+import '../home/home_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -38,10 +39,18 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await _authService.loginWithEmail(
+      final result = await _authService.loginWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+
+      if (result != null && mounted) {
+        // ✅ Navigasi langsung ke Home (tanpa named route)
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      }
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     } finally {
@@ -61,6 +70,14 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _isGoogleLoading = false);
         return;
       }
+      
+      // ✅ Navigasi langsung ke Home
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      }
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     } finally {
@@ -77,13 +94,11 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             children: [
               _buildHeader(),
-
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                 child: Column(
                   children: [
                     const SizedBox(height: 32),
-
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Column(
@@ -107,21 +122,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 28),
-
                     if (_errorMessage != null) _buildErrorBanner(),
-
                     Form(
                       key: _formKey,
                       child: Column(
                         children: [
                           _buildEmailField(),
                           const SizedBox(height: 16),
-
                           _buildPasswordField(),
                           const SizedBox(height: 8),
-
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
@@ -141,16 +151,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 24),
                           _buildLoginButton(),
-
                           const SizedBox(height: 20),
                           _buildDivider(),
-
                           const SizedBox(height: 20),
                           _buildGoogleButton(),
-
                           const SizedBox(height: 28),
                           _buildRegisterLink(),
                         ],
@@ -219,7 +225,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: AppColors.error, size: 18),
+          const Icon(Icons.error_outline, color: AppColors.error, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -242,7 +248,7 @@ class _LoginScreenState extends State<LoginScreen> {
       style: GoogleFonts.poppins(fontSize: 13),
       decoration: InputDecoration(
         hintText: 'name@example.com',
-        prefixIcon: Icon(Icons.email_outlined, color: AppColors.textHint, size: 20),
+        prefixIcon: const Icon(Icons.email_outlined, color: AppColors.textHint, size: 20),
       ),
       validator: (value) {
         if (value == null || value.isEmpty) return 'Email wajib diisi';
@@ -259,7 +265,7 @@ class _LoginScreenState extends State<LoginScreen> {
       style: GoogleFonts.poppins(fontSize: 13),
       decoration: InputDecoration(
         hintText: '••••••••',
-        prefixIcon: Icon(Icons.lock_outline, color: AppColors.textHint, size: 20),
+        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textHint, size: 20),
         suffixIcon: IconButton(
           icon: Icon(
             _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -343,7 +349,7 @@ class _LoginScreenState extends State<LoginScreen> {
           backgroundColor: Colors.white,
         ),
         child: _isGoogleLoading
-            ? SizedBox(
+            ? const SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
