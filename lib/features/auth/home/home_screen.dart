@@ -19,7 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
   User? _user;
-  int _selectedIndex = 0;
+  int _selectedIndex = 1;
 
   final List<Map<String, dynamic>> _recentTransactions = [
     {
@@ -160,7 +160,9 @@ class _HomeScreenState extends State<HomeScreen> {
               Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 8),
+                    horizontal: 24,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(12),
@@ -189,9 +191,9 @@ class _HomeScreenState extends State<HomeScreen> {
         'label': 'Scan Struk',
         'icon': Icons.camera_alt_outlined,
         'onTap': () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ScanScreen()),
-            ),
+          context,
+          MaterialPageRoute(builder: (_) => const ScanScreen()),
+        ),
       },
       {
         'label': 'Dompet',
@@ -202,17 +204,17 @@ class _HomeScreenState extends State<HomeScreen> {
         'label': 'Gabung Room',
         'icon': Icons.group_add_outlined,
         'onTap': () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const JoinRoomScreen()),
-            ),
+          context,
+          MaterialPageRoute(builder: (_) => const JoinRoomScreen()),
+        ),
       },
       {
         'label': 'Riwayat',
         'icon': Icons.history_rounded,
         'onTap': () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const HistoryScreen()),
-            ),
+          context,
+          MaterialPageRoute(builder: (_) => const HistoryScreen()),
+        ),
       },
     ];
 
@@ -320,7 +322,9 @@ class _HomeScreenState extends State<HomeScreen> {
               final tx = _recentTransactions[index];
               return Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -428,9 +432,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Icon(
           icon,
-          color: isSelected
-              ? const Color(0xFF6B0F2B)
-              : const Color(0xFFAA8899),
+          color: isSelected ? const Color(0xFF6B0F2B) : const Color(0xFFAA8899),
           size: 26,
         ),
       ),

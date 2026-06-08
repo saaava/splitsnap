@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:splitsnap/core/theme/app_theme.dart';
 import 'package:splitsnap/features/split/screens/create_room_screen.dart';
 import 'package:splitsnap/features/history/screens/history_screen.dart';
+// import 'package:http/http.dart' as http;
 
 // ─── Model ─────────────────────────────────────────────────────────────────
 
@@ -195,13 +197,12 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     });
 
     try {
-      final bytes = await _imageFile!.readAsBytes();
-      final base64Image = base64Encode(bytes);
-      final ext = _imageFile!.path.split('.').last.toLowerCase();
-      final mediaType = ext == 'png' ? 'image/png' : 'image/jpeg';
+      final inputImage = InputImage.fromFile(_imageFile!);
+      final textRecognizer = TextRecognizer();
+      final recognized = await textRecognizer.processImage(inputImage);
+      await textRecognizer.close();
 
-      final response = await _callClaudeVision(base64Image, mediaType);
-      final parsed = _parseClaudeResponse(response);
+      final parsed = _parseReceiptText(recognized.text);
 
       setState(() {
         _receiptData = parsed;
@@ -216,96 +217,96 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     }
   }
 
-  Future<Map<String, dynamic>> _callClaudeVision(
-      String base64Image, String mediaType) async {
-    // NOTE: API key injected by Anthropic proxy — no hardcoded key needed
-    final uri = Uri.parse('https://api.anthropic.com/v1/messages');
-    final httpClient = HttpClient();
-    final request = await httpClient.postUrl(uri);
+  ReceiptData _parseReceiptText(String rawText) {
+    final lines = rawText
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
 
-    request.headers.set('content-type', 'application/json');
-    // anthropic-version header required
-    request.headers.set('anthropic-version', '2023-06-01');
-
-    final body = jsonEncode({
-      'model': 'claude-opus-4-6',
-      'max_tokens': 1024,
-      'messages': [
-        {
-          'role': 'user',
-          'content': [
-            {
-              'type': 'image',
-              'source': {
-                'type': 'base64',
-                'media_type': mediaType,
-                'data': base64Image,
-              },
-            },
-            {
-              'type': 'text',
-              'text': '''Kamu adalah parser struk belanja. Analisis gambar struk ini dan kembalikan JSON ONLY (tanpa teks lain, tanpa markdown).
-
-Format JSON:
-{
-  "storeName": "Nama toko",
-  "date": "DD Bulan YYYY",
-  "locationQuery": "nama toko alamat kota untuk google maps search",
-  "items": [
-    {"name": "Nama produk", "quantity": 1, "unitPrice": 9000}
-  ]
-}
-
-Aturan:
-- unitPrice adalah harga SATUAN (bukan total)
-- Jika quantity tidak jelas, isi 1
-- locationQuery: kombinasi nama toko + alamat jika ada di struk, untuk pencarian Google Maps
-- Kembalikan HANYA JSON, tidak ada penjelasan'''
-            }
-          ],
-        }
-      ],
-    });
-
-    request.write(body);
-    final response = await request.close();
-    final responseBody = await response.transform(utf8.decoder).join();
-    httpClient.close();
-
-    if (response.statusCode != 200) {
-      throw Exception('API error ${response.statusCode}: $responseBody');
+    // Ambil nama toko dari baris pertama yang cukup panjang
+    String storeName = 'Toko';
+    for (final line in lines.take(5)) {
+      if (line.length > 4 && !RegExp(r'^\d').hasMatch(line)) {
+        storeName = line;
+        break;
+      }
     }
 
-    return jsonDecode(responseBody) as Map<String, dynamic>;
-  }
-
-  ReceiptData _parseClaudeResponse(Map<String, dynamic> apiResponse) {
-    final content = apiResponse['content'] as List;
-    final text = (content.first as Map)['text'] as String;
-
-    // Bersihkan markdown fence jika ada
-    String cleaned = text.trim();
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replaceAll(RegExp(r'```json|```'), '').trim();
+    // Cari tanggal
+    String date = '';
+    final dateRegex = RegExp(
+        r'(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})');
+    for (final line in lines) {
+      final match = dateRegex.firstMatch(line);
+      if (match != null) {
+        date = match.group(0) ?? '';
+        break;
+      }
     }
 
-    final json = jsonDecode(cleaned) as Map<String, dynamic>;
+    // Parse item: cari baris yang ada harga (angka >= 3 digit)
+    final items = <ReceiptItem>[];
+    final priceRegex = RegExp(r'(\d{1,3}(?:[.,]\d{3})+|\d{4,})');
+    
+    // Kata kunci yang bukan item
+    final skipKeywords = [
+      'total', 'tunai', 'kembali', 'ppn', 'tax', 'subtotal',
+      'cash', 'change', 'discount', 'diskon', 'bayar', 'kembal',
+      'npwp', 'npwp', 'kasir', 'terima kasih', 'struk',
+    ];
 
-    final itemsRaw = json['items'] as List? ?? [];
-    final items = itemsRaw.map((e) {
-      final m = e as Map<String, dynamic>;
-      return ReceiptItem(
-        name: m['name']?.toString() ?? '-',
-        quantity: (m['quantity'] as num?)?.toInt() ?? 1,
-        unitPrice: (m['unitPrice'] as num?)?.toInt() ?? 0,
-      );
-    }).toList();
+    for (final line in lines) {
+      final lower = line.toLowerCase();
+      
+      // Skip baris yang mengandung kata kunci non-item
+      if (skipKeywords.any((k) => lower.contains(k))) continue;
+      
+      // Skip baris yang cuma angka atau terlalu pendek
+      if (line.length < 4) continue;
+      
+      // Cari harga di baris ini
+      final matches = priceRegex.allMatches(line).toList();
+      if (matches.isEmpty) continue;
+
+      // Ambil harga terakhir di baris sebagai harga item
+      final priceStr = matches.last.group(0)!
+          .replaceAll(',', '')
+          .replaceAll('.', '');
+      final price = int.tryParse(priceStr);
+      if (price == null || price < 100 || price > 10000000) continue;
+
+      // Ambil nama: teks sebelum angka pertama
+      final firstNumIndex = line.indexOf(RegExp(r'\d'));
+      String name = firstNumIndex > 1
+          ? line.substring(0, firstNumIndex).trim()
+          : line;
+      
+      // Bersihkan nama
+      name = name.replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '').trim();
+      if (name.isEmpty || name.length < 2) continue;
+
+      // Cek quantity (angka kecil di tengah, misal "2 x 9000")
+      int qty = 1;
+      final qtyMatch = RegExp(r'\b(\d{1,2})\s*[xX]\s*\d').firstMatch(line);
+      if (qtyMatch != null) {
+        qty = int.tryParse(qtyMatch.group(1)!) ?? 1;
+      }
+
+      items.add(ReceiptItem(
+        name: name,
+        quantity: qty,
+        unitPrice: qty > 1 ? price ~/ qty : price,
+      ));
+    }
 
     return ReceiptData(
-      storeName: json['storeName']?.toString() ?? 'Toko',
-      date: json['date']?.toString() ?? '',
-      items: items,
-      locationQuery: json['locationQuery']?.toString(),
+      storeName: storeName,
+      date: date,
+      items: items.isEmpty
+          ? [ReceiptItem(name: 'Item tidak terdeteksi', quantity: 1, unitPrice: 0)]
+          : items,
+      locationQuery: storeName,
     );
   }
 
