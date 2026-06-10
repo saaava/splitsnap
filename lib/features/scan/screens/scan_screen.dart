@@ -1,16 +1,13 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:splitsnap/core/theme/app_theme.dart';
-import 'package:splitsnap/features/split/screens/create_room_screen.dart';
+import 'package:splitsnap/features/split/screens/room_share_screen.dart';
 import 'package:splitsnap/features/history/screens/history_screen.dart';
-// import 'package:http/http.dart' as http;
 
 // ─── Model ─────────────────────────────────────────────────────────────────
 
@@ -39,7 +36,7 @@ class ReceiptData {
   final String storeName;
   final String date;
   final List<ReceiptItem> items;
-  final String? locationQuery; // untuk buka gmaps
+  final String? locationQuery;
 
   ReceiptData({
     required this.storeName,
@@ -99,7 +96,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
   }
 
   Future<bool> _requestGalleryPermission() async {
-    // On Android 13+ READ_MEDIA_IMAGES; on older READ_EXTERNAL_STORAGE
     PermissionStatus status;
     if (Platform.isAndroid) {
       status = await Permission.photos.request();
@@ -156,8 +152,8 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     if (!granted) return;
     final xfile = await _picker.pickImage(
       source: ImageSource.camera,
-      imageQuality: 85,
-      maxWidth: 1600,
+      imageQuality: 90,
+      maxWidth: 2000,
     );
     if (xfile != null) {
       setState(() {
@@ -174,8 +170,8 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     if (!granted) return;
     final xfile = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1600,
+      imageQuality: 90,
+      maxWidth: 2000,
     );
     if (xfile != null) {
       setState(() {
@@ -187,7 +183,7 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ── OCR via Claude API ───────────────────────────────────────────────────
+  // ── OCR Processing ───────────────────────────────────────────────────────
 
   Future<void> _processImage() async {
     if (_imageFile == null) return;
@@ -217,6 +213,21 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     }
   }
 
+  // ── ROBUST MULTI-FORMAT RECEIPT PARSER ──────────────────────────────────
+  //
+  // Handles 3 common Indonesian receipt formats:
+  //
+  // FORMAT A (Minimarket / Alfamart / Indomaret style):
+  //   NAMA BARANG              Rp 36.000
+  //
+  // FORMAT B (Two-line style):
+  //   Nama Barang
+  //   1 x 36,000               Rp 36.000
+  //
+  // FORMAT C (BreadTalk / Cafe style - numbered):
+  //   1  Bread Butter Pudding     11,500
+  //   1  Cream Brulle             14,000
+  //
   ReceiptData _parseReceiptText(String rawText) {
     final lines = rawText
         .split('\n')
@@ -224,90 +235,337 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
         .where((l) => l.isNotEmpty)
         .toList();
 
-    // Ambil nama toko dari baris pertama yang cukup panjang
-    String storeName = 'Toko';
-    for (final line in lines.take(5)) {
-      if (line.length > 4 && !RegExp(r'^\d').hasMatch(line)) {
-        storeName = line;
-        break;
-      }
-    }
+    // ── 1. Extract store name ──────────────────────────────────────────────
+    String storeName = _extractStoreName(lines);
 
-    // Cari tanggal
-    String date = '';
-    final dateRegex = RegExp(
-        r'(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})');
-    for (final line in lines) {
-      final match = dateRegex.firstMatch(line);
-      if (match != null) {
-        date = match.group(0) ?? '';
-        break;
-      }
-    }
+    // ── 2. Extract date ────────────────────────────────────────────────────
+    String date = _extractDate(lines);
 
-    // Parse item: cari baris yang ada harga (angka >= 3 digit)
-    final items = <ReceiptItem>[];
-    final priceRegex = RegExp(r'(\d{1,3}(?:[.,]\d{3})+|\d{4,})');
-    
-    // Kata kunci yang bukan item
-    final skipKeywords = [
-      'total', 'tunai', 'kembali', 'ppn', 'tax', 'subtotal',
-      'cash', 'change', 'discount', 'diskon', 'bayar', 'kembal',
-      'npwp', 'npwp', 'kasir', 'terima kasih', 'struk',
-    ];
-
-    for (final line in lines) {
-      final lower = line.toLowerCase();
-      
-      // Skip baris yang mengandung kata kunci non-item
-      if (skipKeywords.any((k) => lower.contains(k))) continue;
-      
-      // Skip baris yang cuma angka atau terlalu pendek
-      if (line.length < 4) continue;
-      
-      // Cari harga di baris ini
-      final matches = priceRegex.allMatches(line).toList();
-      if (matches.isEmpty) continue;
-
-      // Ambil harga terakhir di baris sebagai harga item
-      final priceStr = matches.last.group(0)!
-          .replaceAll(',', '')
-          .replaceAll('.', '');
-      final price = int.tryParse(priceStr);
-      if (price == null || price < 100 || price > 10000000) continue;
-
-      // Ambil nama: teks sebelum angka pertama
-      final firstNumIndex = line.indexOf(RegExp(r'\d'));
-      String name = firstNumIndex > 1
-          ? line.substring(0, firstNumIndex).trim()
-          : line;
-      
-      // Bersihkan nama
-      name = name.replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '').trim();
-      if (name.isEmpty || name.length < 2) continue;
-
-      // Cek quantity (angka kecil di tengah, misal "2 x 9000")
-      int qty = 1;
-      final qtyMatch = RegExp(r'\b(\d{1,2})\s*[xX]\s*\d').firstMatch(line);
-      if (qtyMatch != null) {
-        qty = int.tryParse(qtyMatch.group(1)!) ?? 1;
-      }
-
-      items.add(ReceiptItem(
-        name: name,
-        quantity: qty,
-        unitPrice: qty > 1 ? price ~/ qty : price,
-      ));
-    }
+    // ── 3. Parse items ─────────────────────────────────────────────────────
+    final items = _extractItems(lines);
 
     return ReceiptData(
       storeName: storeName,
       date: date,
       items: items.isEmpty
-          ? [ReceiptItem(name: 'Item tidak terdeteksi', quantity: 1, unitPrice: 0)]
+          ? [ReceiptItem(name: 'Item tidak terdeteksi - coba foto lebih jelas', quantity: 1, unitPrice: 0)]
           : items,
-      locationQuery: storeName,
+      locationQuery: storeName != 'Toko' ? storeName : null,
     );
+  }
+
+  String _extractStoreName(List<String> lines) {
+    // Skip lines that look like dates/times/numbers at the top
+    final datePattern = RegExp(r'^\d{4}[-/]\d{2}[-/]\d{2}');
+    final timePattern = RegExp(r'^\d{2}:\d{2}');
+    final numberOnlyPattern = RegExp(r'^\d+$');
+
+    for (final line in lines.take(8)) {
+      if (datePattern.hasMatch(line)) continue;
+      if (timePattern.hasMatch(line)) continue;
+      if (numberOnlyPattern.hasMatch(line)) continue;
+      if (line.length < 3) continue;
+      // Skip lines that look like addresses (contain "Jl.", "No.", etc.)
+      if (RegExp(r'^(Jl|Jalan|No\.|Jl\.)', caseSensitive: false).hasMatch(line)) continue;
+      // Skip pure number lines
+      if (RegExp(r'^[\d\s.,]+$').hasMatch(line)) continue;
+      // Good candidate: has letters and reasonable length
+      if (RegExp(r'[a-zA-Z]').hasMatch(line) && line.length >= 3) {
+        return _cleanText(line);
+      }
+    }
+    return 'Toko';
+  }
+
+  String _extractDate(List<String> lines) {
+    // Formats: 2023-08-02, 02/08/2023, 10 May 19, 23-08-02
+    final patterns = [
+      RegExp(r'\d{4}[-/]\d{1,2}[-/]\d{1,2}'),
+      RegExp(r'\d{1,2}[-/]\d{1,2}[-/]\d{2,4}'),
+      RegExp(r'\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2,4}', caseSensitive: false),
+    ];
+    for (final line in lines) {
+      for (final pattern in patterns) {
+        final match = pattern.firstMatch(line);
+        if (match != null) return match.group(0)!;
+      }
+    }
+    return '';
+  }
+
+  List<ReceiptItem> _extractItems(List<String> lines) {
+    final items = <ReceiptItem>[];
+
+    // Keywords to skip entirely — covers payment/footer/summary lines
+    final skipKeywords = RegExp(
+      r'\b(total|tunai|kembali|kembal|ppn|pajak|tax|subtotal|sub\s*total|'
+      r'cash|change|kembalian|uang kembali|bayar|bayaran|pembayaran|payment|'
+      r'debit|kredit|credit|bca|mandiri|bri|bni|dana|ovo|gopay|shopeepay|'
+      r'npwp|kasir|cashier|terima kasih|thank you|closed|open|'
+      r'receipt|struk|invoice|nota|grand total|'
+      r'service charge|service fee|tax amount|'
+      r'harga total|jumlah|diskon|discount|promo|voucher|'
+      r'ongkos|ongkir|delivery|member|poin|point|'
+      r'tgl|tanggal|jam|waktu|no\s*struk|no\s*nota|no\s*faktur|'
+      r'item qty|qty item|total qty|total item|total pcs|pcs total)\b',
+      caseSensitive: false,
+    );
+
+    // Price regex: matches 1.000 / 1,000 / 11500 / 11.500
+    final priceRegex = RegExp(r'\b(\d{1,3}(?:[.,]\d{3})+|\d{4,7})\b');
+
+    // ── Detect format ────────────────────────────────────────────────────
+    // Count lines that look like "1  ItemName  price" → Format C
+    // Count lines where next line has qty×price → Format B
+    // Otherwise Format A
+
+    // Try FORMAT C first: "QTY  Name  Price" on same line
+    // Pattern: starts with 1-2 digits, then text, then price
+    final formatCPattern = RegExp(r'^(\d{1,2})\s+([A-Za-z][A-Za-z\s/\-]+?)\s+([\d.,]{4,})$');
+    int formatCMatches = 0;
+    for (final line in lines) {
+      if (formatCPattern.hasMatch(line)) formatCMatches++;
+    }
+
+    if (formatCMatches >= 2) {
+      // Format C: "1  Bread Butter Pudding  11,500"
+      return _parseFormatC(lines, skipKeywords, priceRegex);
+    }
+
+    // Try FORMAT B: item name on one line, qty+price on next
+    return _parseFormatAB(lines, skipKeywords, priceRegex);
+  }
+
+  // FORMAT C: BreadTalk style - "QTY Name Price" on same line
+  List<ReceiptItem> _parseFormatC(
+      List<String> lines, RegExp skipKeywords, RegExp priceRegex) {
+    final items = <ReceiptItem>[];
+    // Pattern: optional leading number, name, trailing price
+    // e.g. "1  Bread Butter Pudding    11,500"
+    //      "1  Bank Of Chocolat         7,500"
+    final linePattern = RegExp(r'^(\d{1,2})\s+(.+?)\s+([\d.,]{4,})\s*$');
+
+    for (final line in lines) {
+      if (skipKeywords.hasMatch(line.toLowerCase())) continue;
+
+      final match = linePattern.firstMatch(line);
+      if (match == null) continue;
+
+      final qty = int.tryParse(match.group(1)!) ?? 1;
+      final rawName = match.group(2)!.trim();
+      final priceStr = _normalizePrice(match.group(3)!);
+      final price = int.tryParse(priceStr) ?? 0;
+
+      if (price < 100 || price > 10000000) continue;
+      final name = _cleanItemName(rawName);
+      if (name.length < 2) continue;
+
+      // Unit price = total / qty
+      final unitPrice = qty > 0 ? price ~/ qty : price;
+      items.add(ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice));
+    }
+    return items;
+  }
+
+  // FORMAT A & B: Handles both single-line and two-line receipt formats
+  List<ReceiptItem> _parseFormatAB(
+      List<String> lines, RegExp skipKeywords, RegExp priceRegex) {
+    final items = <ReceiptItem>[];
+
+    // Identify "footer" zone: stop parsing when we hit summary/payment lines
+    int footerStart = lines.length;
+    for (int i = 0; i < lines.length; i++) {
+      final l = lines[i].toLowerCase().trim();
+      // Any line that is purely a total/subtotal/payment marker
+      if (RegExp(
+        r'^(subtotal|sub total|sub-total|total qty|total item|total pcs|'
+        r'grand total|total\s*:?\s*[\d.,]+|tunai|kembali|kembalian|payment|'
+        r'terima kasih|thank you)',
+      ).hasMatch(l)) {
+        footerStart = i;
+        break;
+      }
+    }
+
+    int i = 0;
+    while (i < footerStart) {
+      final line = lines[i];
+      final lineLower = line.toLowerCase();
+
+      // Skip non-item lines
+      if (skipKeywords.hasMatch(lineLower) ||
+          line.length < 2 ||
+          RegExp(r'^[-=*]+$').hasMatch(line)) {
+        i++;
+        continue;
+      }
+
+      // ── Pattern: numbered item like "1. Indomie Goreng" or "2. Fruit Tea Apple"
+      final numberedItemPattern = RegExp(r'^\d+\.\s+(.+)$');
+      final numberedMatch = numberedItemPattern.firstMatch(line);
+
+      if (numberedMatch != null) {
+        // Item name is on this line, price/qty detail on next line
+        final rawName = numberedMatch.group(1)!.trim();
+        String name = _cleanItemName(rawName);
+
+        // Look ahead for qty×price line
+        int qty = 1;
+        int unitPrice = 0;
+
+        if (i + 1 < footerStart) {
+          final nextLine = lines[i + 1];
+          final qtyPriceInfo = _parseQtyPriceLine(nextLine);
+          if (qtyPriceInfo != null) {
+            qty = qtyPriceInfo['qty'] as int;
+            unitPrice = qtyPriceInfo['unitPrice'] as int;
+            i += 2; // consume both lines
+          } else {
+            // Maybe price is inline (Format A with number prefix)
+            final prices = priceRegex.allMatches(line).toList();
+            if (prices.isNotEmpty) {
+              final p = int.tryParse(_normalizePrice(prices.last.group(0)!)) ?? 0;
+              if (p >= 100 && p <= 10000000) unitPrice = p;
+            }
+            i++;
+          }
+        } else {
+          i++;
+        }
+
+        if (name.length >= 2 && unitPrice > 0) {
+          items.add(ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice));
+        }
+        continue;
+      }
+
+      // ── Pattern: "ItemName    Rp 36.000" on same line (Format A)
+      final pricesInLine = priceRegex.allMatches(line).toList();
+      if (pricesInLine.isNotEmpty) {
+        final lastPriceMatch = pricesInLine.last;
+        final price = int.tryParse(_normalizePrice(lastPriceMatch.group(0)!)) ?? 0;
+
+        if (price >= 100 && price <= 10000000) {
+          // Extract name: text before the price, remove "Rp", numbers
+          String name = line.substring(0, lastPriceMatch.start).trim();
+          name = name.replaceAll(RegExp(r'\b[Rr][Pp]\.?\s*'), '').trim();
+          name = _cleanItemName(name);
+
+          // Check for qty (e.g., "2 x" or "@2")
+          int qty = 1;
+          final qtyMatch = RegExp(r'\b(\d{1,2})\s*[xX@]\s*').firstMatch(name);
+          if (qtyMatch != null) {
+            qty = int.tryParse(qtyMatch.group(1)!) ?? 1;
+            name = name.replaceFirst(qtyMatch.group(0)!, '').trim();
+            name = _cleanItemName(name);
+          }
+
+          if (name.length >= 2 && !skipKeywords.hasMatch(name.toLowerCase())) {
+            final unitPrice = qty > 1 ? price ~/ qty : price;
+            items.add(ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice));
+          }
+          i++;
+          continue;
+        }
+      }
+
+      // ── Pattern: line has no price but might be item name (Format B leading line)
+      // Check if next line is a qty×price line
+      if (i + 1 < footerStart) {
+        final nextLine = lines[i + 1];
+        final qtyPriceInfo = _parseQtyPriceLine(nextLine);
+
+        if (qtyPriceInfo != null && !skipKeywords.hasMatch(lineLower)) {
+          final rawName = line;
+          // Must look like an item name: contains letters, reasonable length
+          if (RegExp(r'[a-zA-Z]').hasMatch(rawName) &&
+              rawName.length >= 3 &&
+              !RegExp(r'^\d{4}').hasMatch(rawName)) {
+            String name = _cleanItemName(rawName);
+            if (name.length >= 2) {
+              final qty = qtyPriceInfo['qty'] as int;
+              final unitPrice = qtyPriceInfo['unitPrice'] as int;
+              if (unitPrice > 0) {
+                items.add(ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice));
+                i += 2;
+                continue;
+              }
+            }
+          }
+        }
+      }
+
+      i++;
+    }
+
+    return items;
+  }
+
+  // Parse lines like:
+  //   "1 lusin x 36,000   Rp 36.000"
+  //   "1 500ml x 7,000    Rp 7.000"
+  //   "1 x 27,000         Rp 27.000"
+  //   "2x9.500            Rp 19.000"
+  Map<String, int>? _parseQtyPriceLine(String line) {
+    // Pattern 1: "qty [unit] x unitPrice [total]"
+    final pattern1 = RegExp(
+      r'^(\d{1,3})\s*(?:[a-zA-Z/]+\s+)?[xX@]\s*([\d.,]+)',
+    );
+    final m1 = pattern1.firstMatch(line);
+    if (m1 != null) {
+      final qty = int.tryParse(m1.group(1)!) ?? 1;
+      final unitPriceStr = _normalizePrice(m1.group(2)!);
+      final unitPrice = int.tryParse(unitPriceStr) ?? 0;
+      if (unitPrice >= 100 && unitPrice <= 5000000) {
+        return {'qty': qty, 'unitPrice': unitPrice};
+      }
+    }
+
+    // Pattern 2: just a price on the line (for multiline receipts where
+    // the previous line was item name)
+    final priceOnly = RegExp(r'^[Rr][Pp]\.?\s*([\d.,]+)\s*$');
+    final m2 = priceOnly.firstMatch(line.trim());
+    if (m2 != null) {
+      final price = int.tryParse(_normalizePrice(m2.group(1)!)) ?? 0;
+      if (price >= 100 && price <= 10000000) {
+        return {'qty': 1, 'unitPrice': price};
+      }
+    }
+
+    return null;
+  }
+
+  // Normalize price string: "36.000" → "36000", "36,000" → "36000"
+  String _normalizePrice(String raw) {
+    // Indonesian: dots as thousands separator → remove dots
+    // If comma present as decimal → remove comma too (we only care about integers)
+    String clean = raw.replaceAll('.', '').replaceAll(',', '');
+    return clean;
+  }
+
+  // Clean up item name
+  String _cleanItemName(String raw) {
+    // Remove leading/trailing numbers that could be line numbers
+    String name = raw.trim();
+    // Remove leading "Rp" 
+    name = name.replaceAll(RegExp(r'^[Rr][Pp]\.?\s*'), '');
+    // Remove trailing/leading dashes, asterisks, pipes
+    name = name.replaceAll(RegExp(r'^[-*|]+|[-*|]+$'), '').trim();
+    // Remove multiple spaces
+    name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+    // Capitalize first letter of each word if all lowercase
+    if (name == name.toLowerCase() && name.isNotEmpty) {
+      name = name.split(' ').map((w) {
+        if (w.isEmpty) return w;
+        return w[0].toUpperCase() + w.substring(1);
+      }).join(' ');
+    }
+    return name;
+  }
+
+  // Clean store name
+  String _cleanText(String raw) {
+    return raw.replaceAll(RegExp(r'[^\w\s.,\-]'), '').trim();
   }
 
   // ── Open Maps ───────────────────────────────────────────────────────────
@@ -331,7 +589,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
 
   void _saveToHistory() {
     if (_receiptData == null) return;
-    // TODO: persist via Firestore/SharedPreferences
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(
         'Struk disimpan ke Riwayat ✅',
@@ -360,15 +617,16 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
               'quantity': i.quantity,
               'unitPrice': i.unitPrice,
               'totalPrice': i.totalPrice,
-              'checked': false,
+              'checked': true,
             })
         .toList();
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => CreateRoomScreen(
+        builder: (_) => RoomShareScreen(
           items: items,
           storeName: _receiptData!.storeName,
+          date: _receiptData!.date,
         ),
       ),
     );
@@ -377,6 +635,7 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
   // ── Format helpers ──────────────────────────────────────────────────────
 
   String _formatRupiah(int amount) {
+    if (amount == 0) return 'Rp 0';
     final str = amount.toString();
     final buf = StringBuffer();
     for (int i = 0; i < str.length; i++) {
@@ -477,6 +736,14 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
                       fontSize: 14,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Pastikan struk terlihat jelas & tidak buram',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white38,
+                      fontSize: 11,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -499,7 +766,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
           _buildButton(
             label: 'Arahkan ke struk belanja',
             onTap: _pickFromCamera,
-            filled: false,
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 10),
@@ -508,7 +774,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
           _buildButton(
             label: 'Pilih dari Galeri',
             onTap: _pickFromGallery,
-            filled: false,
           ),
         ],
       ),
@@ -518,7 +783,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
   Widget _buildButton({
     required String label,
     required VoidCallback onTap,
-    required bool filled,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -526,7 +790,7 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
         width: double.infinity,
         height: 52,
         decoration: BoxDecoration(
-          color: filled ? AppColors.primary : Colors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(14),
         ),
         alignment: Alignment.center,
@@ -535,7 +799,7 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
           style: GoogleFonts.poppins(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: filled ? Colors.white : AppColors.primary,
+            color: AppColors.primary,
           ),
         ),
       ),
@@ -556,10 +820,12 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
           const SizedBox(height: 14),
           Text(
             'Menganalisis struk...',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
+            style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Mohon tunggu sebentar',
+            style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textHint),
           ),
         ],
       ),
@@ -603,6 +869,8 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
 
   Widget _buildReceiptResult() {
     final data = _receiptData!;
+    final hasValidItems = data.items.any((i) => i.unitPrice > 0);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       decoration: BoxDecoration(
@@ -648,7 +916,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-                // Maps button
                 if (data.locationQuery != null)
                   GestureDetector(
                     onTap: () => _openMaps(data.locationQuery!),
@@ -681,15 +948,43 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
             ),
           ),
 
+          // Warning if items not detected well
+          if (!hasValidItems)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: Colors.orange, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Foto kurang jelas. Coba foto ulang dengan cahaya lebih terang.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           const SizedBox(height: 16),
           Divider(color: AppColors.divider, height: 1, indent: 20, endIndent: 20),
           const SizedBox(height: 8),
 
-          // Item list with +/- controls
+          // Item list
           ...data.items.asMap().entries.map((entry) {
-            final i = entry.key;
             final item = entry.value;
-            return _buildItemRow(item, i);
+            return _buildItemRow(item);
           }),
 
           Divider(color: AppColors.divider, thickness: 1.5, indent: 20, endIndent: 20),
@@ -724,9 +1019,7 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildItemRow(ReceiptItem item, int index) {
-    // Max quantity berdasarkan parsing awal (simpan ke originalQty tidak perlu karena kita batasi via slider)
-    // Di sini kita pakai batas wajar: 1..99 tapi biasanya 1..10
+  Widget _buildItemRow(ReceiptItem item) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
@@ -753,7 +1046,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
               ],
             ),
           ),
-          // Qty stepper
           Row(
             children: [
               _qtyButton(
@@ -782,7 +1074,7 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(width: 12),
           SizedBox(
-            width: 72,
+            width: 80,
             child: Text(
               _formatRupiah(item.totalPrice),
               textAlign: TextAlign.end,
@@ -897,20 +1189,15 @@ class _ScanFramePainter extends CustomPainter {
     const corner = 16.0;
     const len = 20.0;
 
-    // Top-left
     canvas.drawLine(Offset(corner, 0), Offset(corner + len, 0), paint);
     canvas.drawLine(Offset(corner, 0), Offset(corner, len), paint);
-    // Top-right
     canvas.drawLine(Offset(size.width - corner - len, 0), Offset(size.width - corner, 0), paint);
     canvas.drawLine(Offset(size.width - corner, 0), Offset(size.width - corner, len), paint);
-    // Bottom-left
     canvas.drawLine(Offset(corner, size.height - len), Offset(corner, size.height), paint);
     canvas.drawLine(Offset(corner, size.height), Offset(corner + len, size.height), paint);
-    // Bottom-right
     canvas.drawLine(Offset(size.width - corner, size.height - len), Offset(size.width - corner, size.height), paint);
     canvas.drawLine(Offset(size.width - corner - len, size.height), Offset(size.width - corner, size.height), paint);
 
-    // Center line
     final linePaint = Paint()
       ..color = Colors.white54
       ..strokeWidth = 1.5;
