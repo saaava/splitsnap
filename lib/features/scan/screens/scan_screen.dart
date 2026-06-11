@@ -25,11 +25,11 @@ class ReceiptItem {
   int get totalPrice => unitPrice * quantity;
 
   Map<String, dynamic> toMap() => {
-        'name': name,
-        'quantity': quantity,
-        'unitPrice': unitPrice,
-        'totalPrice': totalPrice,
-      };
+    'name': name,
+    'quantity': quantity,
+    'unitPrice': unitPrice,
+    'totalPrice': totalPrice,
+  };
 }
 
 class ReceiptData {
@@ -88,7 +88,10 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     final status = await Permission.camera.request();
     if (status.isPermanentlyDenied) {
       if (mounted) {
-        _showSettingsDialog('Kamera', 'Izin kamera diperlukan untuk scan struk.');
+        _showSettingsDialog(
+          'Kamera',
+          'Izin kamera diperlukan untuk scan struk.',
+        );
       }
       return false;
     }
@@ -107,7 +110,10 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     }
     if (status.isPermanentlyDenied) {
       if (mounted) {
-        _showSettingsDialog('Galeri', 'Izin galeri diperlukan untuk memilih foto struk.');
+        _showSettingsDialog(
+          'Galeri',
+          'Izin galeri diperlukan untuk memilih foto struk.',
+        );
       }
       return false;
     }
@@ -127,7 +133,10 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Batal', style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+            child: Text(
+              'Batal',
+              style: GoogleFonts.poppins(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -136,9 +145,14 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-            child: Text('Buka Pengaturan', style: GoogleFonts.poppins(color: Colors.white, fontSize: 13)),
+            child: Text(
+              'Buka Pengaturan',
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
+            ),
           ),
         ],
       ),
@@ -214,20 +228,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
   }
 
   // ── ROBUST MULTI-FORMAT RECEIPT PARSER ──────────────────────────────────
-  //
-  // Handles 3 common Indonesian receipt formats:
-  //
-  // FORMAT A (Minimarket / Alfamart / Indomaret style):
-  //   NAMA BARANG              Rp 36.000
-  //
-  // FORMAT B (Two-line style):
-  //   Nama Barang
-  //   1 x 36,000               Rp 36.000
-  //
-  // FORMAT C (BreadTalk / Cafe style - numbered):
-  //   1  Bread Butter Pudding     11,500
-  //   1  Cream Brulle             14,000
-  //
   ReceiptData _parseReceiptText(String rawText) {
     final lines = rawText
         .split('\n')
@@ -235,41 +235,42 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
         .where((l) => l.isNotEmpty)
         .toList();
 
-    // ── 1. Extract store name ──────────────────────────────────────────────
     String storeName = _extractStoreName(lines);
-
-    // ── 2. Extract date ────────────────────────────────────────────────────
     String date = _extractDate(lines);
-
-    // ── 3. Parse items ─────────────────────────────────────────────────────
     final items = _extractItems(lines);
 
     return ReceiptData(
       storeName: storeName,
       date: date,
       items: items.isEmpty
-          ? [ReceiptItem(name: 'Item tidak terdeteksi - coba foto lebih jelas', quantity: 1, unitPrice: 0)]
+          ? [
+              ReceiptItem(
+                name: 'Item tidak terdeteksi - coba foto lebih jelas',
+                quantity: 1,
+                unitPrice: 0,
+              ),
+            ]
           : items,
       locationQuery: storeName != 'Toko' ? storeName : null,
     );
   }
 
   String _extractStoreName(List<String> lines) {
-    // Skip lines that look like dates/times/numbers at the top
     final datePattern = RegExp(r'^\d{4}[-/]\d{2}[-/]\d{2}');
     final timePattern = RegExp(r'^\d{2}:\d{2}');
     final numberOnlyPattern = RegExp(r'^\d+$');
+    // Filter tanggal format dd.mm.yyyy atau dd/mm/yyyy
+    final shortDatePattern = RegExp(r'^\d{1,2}[./]\d{1,2}[./]\d{2,4}');
 
     for (final line in lines.take(8)) {
       if (datePattern.hasMatch(line)) continue;
       if (timePattern.hasMatch(line)) continue;
       if (numberOnlyPattern.hasMatch(line)) continue;
+      if (shortDatePattern.hasMatch(line)) continue;
       if (line.length < 3) continue;
-      // Skip lines that look like addresses (contain "Jl.", "No.", etc.)
-      if (RegExp(r'^(Jl|Jalan|No\.|Jl\.)', caseSensitive: false).hasMatch(line)) continue;
-      // Skip pure number lines
+      if (RegExp(r'^(Jl|Jalan|No\.|Jl\.)', caseSensitive: false).hasMatch(line))
+        continue;
       if (RegExp(r'^[\d\s.,]+$').hasMatch(line)) continue;
-      // Good candidate: has letters and reasonable length
       if (RegExp(r'[a-zA-Z]').hasMatch(line) && line.length >= 3) {
         return _cleanText(line);
       }
@@ -278,11 +279,14 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
   }
 
   String _extractDate(List<String> lines) {
-    // Formats: 2023-08-02, 02/08/2023, 10 May 19, 23-08-02
     final patterns = [
       RegExp(r'\d{4}[-/]\d{1,2}[-/]\d{1,2}'),
       RegExp(r'\d{1,2}[-/]\d{1,2}[-/]\d{2,4}'),
-      RegExp(r'\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2,4}', caseSensitive: false),
+      RegExp(r'\d{1,2}[.]\d{1,2}[.]\d{2,4}'),
+      RegExp(
+        r'\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2,4}',
+        caseSensitive: false,
+      ),
     ];
     for (final line in lines) {
       for (final pattern in patterns) {
@@ -296,7 +300,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
   List<ReceiptItem> _extractItems(List<String> lines) {
     final items = <ReceiptItem>[];
 
-    // Keywords to skip entirely — covers payment/footer/summary lines
     final skipKeywords = RegExp(
       r'\b(total|tunai|kembali|kembal|ppn|pajak|tax|subtotal|sub\s*total|'
       r'cash|change|kembalian|uang kembali|bayar|bayaran|pembayaran|payment|'
@@ -311,42 +314,39 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
       caseSensitive: false,
     );
 
-    // Price regex: matches 1.000 / 1,000 / 11500 / 11.500
+    // Pattern tanggal pendek: dd.mm.yyyy, dd/mm/yyyy, d.m.yyyy dll
+    final dateLine = RegExp(r'^\d{1,2}[./]\d{1,2}[./]\d{2,4}');
+
     final priceRegex = RegExp(r'\b(\d{1,3}(?:[.,]\d{3})+|\d{4,7})\b');
 
-    // ── Detect format ────────────────────────────────────────────────────
-    // Count lines that look like "1  ItemName  price" → Format C
-    // Count lines where next line has qty×price → Format B
-    // Otherwise Format A
-
-    // Try FORMAT C first: "QTY  Name  Price" on same line
-    // Pattern: starts with 1-2 digits, then text, then price
-    final formatCPattern = RegExp(r'^(\d{1,2})\s+([A-Za-z][A-Za-z\s/\-]+?)\s+([\d.,]{4,})$');
+    final formatCPattern = RegExp(
+      r'^(\d{1,2})\s+([A-Za-z][A-Za-z\s/\-]+?)\s+([\d.,]{4,})$',
+    );
     int formatCMatches = 0;
     for (final line in lines) {
       if (formatCPattern.hasMatch(line)) formatCMatches++;
     }
 
     if (formatCMatches >= 2) {
-      // Format C: "1  Bread Butter Pudding  11,500"
-      return _parseFormatC(lines, skipKeywords, priceRegex);
+      return _parseFormatC(lines, skipKeywords, priceRegex, dateLine);
     }
 
-    // Try FORMAT B: item name on one line, qty+price on next
-    return _parseFormatAB(lines, skipKeywords, priceRegex);
+    return _parseFormatAB(lines, skipKeywords, priceRegex, dateLine);
   }
 
-  // FORMAT C: BreadTalk style - "QTY Name Price" on same line
   List<ReceiptItem> _parseFormatC(
-      List<String> lines, RegExp skipKeywords, RegExp priceRegex) {
+    List<String> lines,
+    RegExp skipKeywords,
+    RegExp priceRegex,
+    RegExp dateLine,
+  ) {
     final items = <ReceiptItem>[];
-    // Pattern: optional leading number, name, trailing price
-    // e.g. "1  Bread Butter Pudding    11,500"
-    //      "1  Bank Of Chocolat         7,500"
     final linePattern = RegExp(r'^(\d{1,2})\s+(.+?)\s+([\d.,]{4,})\s*$');
 
     for (final line in lines) {
       if (skipKeywords.hasMatch(line.toLowerCase())) continue;
+      // Skip baris tanggal
+      if (dateLine.hasMatch(line)) continue;
 
       final match = linePattern.firstMatch(line);
       if (match == null) continue;
@@ -360,23 +360,23 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
       final name = _cleanItemName(rawName);
       if (name.length < 2) continue;
 
-      // Unit price = total / qty
       final unitPrice = qty > 0 ? price ~/ qty : price;
       items.add(ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice));
     }
     return items;
   }
 
-  // FORMAT A & B: Handles both single-line and two-line receipt formats
   List<ReceiptItem> _parseFormatAB(
-      List<String> lines, RegExp skipKeywords, RegExp priceRegex) {
+    List<String> lines,
+    RegExp skipKeywords,
+    RegExp priceRegex,
+    RegExp dateLine,
+  ) {
     final items = <ReceiptItem>[];
 
-    // Identify "footer" zone: stop parsing when we hit summary/payment lines
     int footerStart = lines.length;
     for (int i = 0; i < lines.length; i++) {
       final l = lines[i].toLowerCase().trim();
-      // Any line that is purely a total/subtotal/payment marker
       if (RegExp(
         r'^(subtotal|sub total|sub-total|total qty|total item|total pcs|'
         r'grand total|total\s*:?\s*[\d.,]+|tunai|kembali|kembalian|payment|'
@@ -392,7 +392,12 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
       final line = lines[i];
       final lineLower = line.toLowerCase();
 
-      // Skip non-item lines
+      // Skip baris tanggal (misal: 18.7.2024 08:49)
+      if (dateLine.hasMatch(line)) {
+        i++;
+        continue;
+      }
+
       if (skipKeywords.hasMatch(lineLower) ||
           line.length < 2 ||
           RegExp(r'^[-=*]+$').hasMatch(line)) {
@@ -400,16 +405,13 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
         continue;
       }
 
-      // ── Pattern: numbered item like "1. Indomie Goreng" or "2. Fruit Tea Apple"
       final numberedItemPattern = RegExp(r'^\d+\.\s+(.+)$');
       final numberedMatch = numberedItemPattern.firstMatch(line);
 
       if (numberedMatch != null) {
-        // Item name is on this line, price/qty detail on next line
         final rawName = numberedMatch.group(1)!.trim();
         String name = _cleanItemName(rawName);
 
-        // Look ahead for qty×price line
         int qty = 1;
         int unitPrice = 0;
 
@@ -419,12 +421,12 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
           if (qtyPriceInfo != null) {
             qty = qtyPriceInfo['qty'] as int;
             unitPrice = qtyPriceInfo['unitPrice'] as int;
-            i += 2; // consume both lines
+            i += 2;
           } else {
-            // Maybe price is inline (Format A with number prefix)
             final prices = priceRegex.allMatches(line).toList();
             if (prices.isNotEmpty) {
-              final p = int.tryParse(_normalizePrice(prices.last.group(0)!)) ?? 0;
+              final p =
+                  int.tryParse(_normalizePrice(prices.last.group(0)!)) ?? 0;
               if (p >= 100 && p <= 10000000) unitPrice = p;
             }
             i++;
@@ -434,24 +436,24 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
         }
 
         if (name.length >= 2 && unitPrice > 0) {
-          items.add(ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice));
+          items.add(
+            ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice),
+          );
         }
         continue;
       }
 
-      // ── Pattern: "ItemName    Rp 36.000" on same line (Format A)
       final pricesInLine = priceRegex.allMatches(line).toList();
       if (pricesInLine.isNotEmpty) {
         final lastPriceMatch = pricesInLine.last;
-        final price = int.tryParse(_normalizePrice(lastPriceMatch.group(0)!)) ?? 0;
+        final price =
+            int.tryParse(_normalizePrice(lastPriceMatch.group(0)!)) ?? 0;
 
         if (price >= 100 && price <= 10000000) {
-          // Extract name: text before the price, remove "Rp", numbers
           String name = line.substring(0, lastPriceMatch.start).trim();
           name = name.replaceAll(RegExp(r'\b[Rr][Pp]\.?\s*'), '').trim();
           name = _cleanItemName(name);
 
-          // Check for qty (e.g., "2 x" or "@2")
           int qty = 1;
           final qtyMatch = RegExp(r'\b(\d{1,2})\s*[xX@]\s*').firstMatch(name);
           if (qtyMatch != null) {
@@ -462,22 +464,21 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
 
           if (name.length >= 2 && !skipKeywords.hasMatch(name.toLowerCase())) {
             final unitPrice = qty > 1 ? price ~/ qty : price;
-            items.add(ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice));
+            items.add(
+              ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice),
+            );
           }
           i++;
           continue;
         }
       }
 
-      // ── Pattern: line has no price but might be item name (Format B leading line)
-      // Check if next line is a qty×price line
       if (i + 1 < footerStart) {
         final nextLine = lines[i + 1];
         final qtyPriceInfo = _parseQtyPriceLine(nextLine);
 
         if (qtyPriceInfo != null && !skipKeywords.hasMatch(lineLower)) {
           final rawName = line;
-          // Must look like an item name: contains letters, reasonable length
           if (RegExp(r'[a-zA-Z]').hasMatch(rawName) &&
               rawName.length >= 3 &&
               !RegExp(r'^\d{4}').hasMatch(rawName)) {
@@ -486,7 +487,9 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
               final qty = qtyPriceInfo['qty'] as int;
               final unitPrice = qtyPriceInfo['unitPrice'] as int;
               if (unitPrice > 0) {
-                items.add(ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice));
+                items.add(
+                  ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice),
+                );
                 i += 2;
                 continue;
               }
@@ -501,13 +504,7 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     return items;
   }
 
-  // Parse lines like:
-  //   "1 lusin x 36,000   Rp 36.000"
-  //   "1 500ml x 7,000    Rp 7.000"
-  //   "1 x 27,000         Rp 27.000"
-  //   "2x9.500            Rp 19.000"
   Map<String, int>? _parseQtyPriceLine(String line) {
-    // Pattern 1: "qty [unit] x unitPrice [total]"
     final pattern1 = RegExp(
       r'^(\d{1,3})\s*(?:[a-zA-Z/]+\s+)?[xX@]\s*([\d.,]+)',
     );
@@ -521,8 +518,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
       }
     }
 
-    // Pattern 2: just a price on the line (for multiline receipts where
-    // the previous line was item name)
     final priceOnly = RegExp(r'^[Rr][Pp]\.?\s*([\d.,]+)\s*$');
     final m2 = priceOnly.firstMatch(line.trim());
     if (m2 != null) {
@@ -535,35 +530,28 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     return null;
   }
 
-  // Normalize price string: "36.000" → "36000", "36,000" → "36000"
   String _normalizePrice(String raw) {
-    // Indonesian: dots as thousands separator → remove dots
-    // If comma present as decimal → remove comma too (we only care about integers)
     String clean = raw.replaceAll('.', '').replaceAll(',', '');
     return clean;
   }
 
-  // Clean up item name
   String _cleanItemName(String raw) {
-    // Remove leading/trailing numbers that could be line numbers
     String name = raw.trim();
-    // Remove leading "Rp" 
     name = name.replaceAll(RegExp(r'^[Rr][Pp]\.?\s*'), '');
-    // Remove trailing/leading dashes, asterisks, pipes
     name = name.replaceAll(RegExp(r'^[-*|]+|[-*|]+$'), '').trim();
-    // Remove multiple spaces
     name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
-    // Capitalize first letter of each word if all lowercase
     if (name == name.toLowerCase() && name.isNotEmpty) {
-      name = name.split(' ').map((w) {
-        if (w.isEmpty) return w;
-        return w[0].toUpperCase() + w.substring(1);
-      }).join(' ');
+      name = name
+          .split(' ')
+          .map((w) {
+            if (w.isEmpty) return w;
+            return w[0].toUpperCase() + w.substring(1);
+          })
+          .join(' ');
     }
     return name;
   }
 
-  // Clean store name
   String _cleanText(String raw) {
     return raw.replaceAll(RegExp(r'[^\w\s.,\-]'), '').trim();
   }
@@ -572,15 +560,22 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
 
   Future<void> _openMaps(String query) async {
     final encoded = Uri.encodeComponent(query);
-    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$encoded');
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$encoded',
+    );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Tidak bisa membuka Maps', style: GoogleFonts.poppins(fontSize: 12)),
-          backgroundColor: AppColors.error,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Tidak bisa membuka Maps',
+              style: GoogleFonts.poppins(fontSize: 12),
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     }
   }
@@ -589,14 +584,16 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
 
   void _saveToHistory() {
     if (_receiptData == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(
-        'Struk disimpan ke Riwayat ✅',
-        style: GoogleFonts.poppins(fontSize: 12),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Struk disimpan ke Riwayat ✅',
+          style: GoogleFonts.poppins(fontSize: 12),
+        ),
+        backgroundColor: AppColors.success,
+        duration: const Duration(seconds: 2),
       ),
-      backgroundColor: AppColors.success,
-      duration: const Duration(seconds: 2),
-    ));
+    );
     Future.delayed(const Duration(milliseconds: 1800), () {
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -608,17 +605,20 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
   }
 
   // ── Navigate to split room ───────────────────────────────────────────────
+  // Items dikirim dengan checked: false — user centang sendiri di room
 
   void _goToSplit() {
     if (_receiptData == null) return;
     final items = _receiptData!.items
-        .map((i) => {
-              'name': i.name,
-              'quantity': i.quantity,
-              'unitPrice': i.unitPrice,
-              'totalPrice': i.totalPrice,
-              'checked': true,
-            })
+        .map(
+          (i) => {
+            'name': i.name,
+            'quantity': i.quantity,
+            'unitPrice': i.unitPrice,
+            'totalPrice': i.totalPrice,
+            'checked': false, // user centang sendiri
+          },
+        )
         .toList();
     Navigator.push(
       context,
@@ -689,7 +689,11 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.arrow_back_ios_new,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Text(
@@ -771,19 +775,13 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
             padding: EdgeInsets.symmetric(vertical: 10),
             child: _OrDivider(),
           ),
-          _buildButton(
-            label: 'Pilih dari Galeri',
-            onTap: _pickFromGallery,
-          ),
+          _buildButton(label: 'Pilih dari Galeri', onTap: _pickFromGallery),
         ],
       ),
     );
   }
 
-  Widget _buildButton({
-    required String label,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildButton({required String label, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -820,7 +818,10 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
           const SizedBox(height: 14),
           Text(
             'Menganalisis struk...',
-            style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textSecondary),
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -887,7 +888,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Store header
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Row(
@@ -920,17 +920,25 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
                   GestureDetector(
                     onTap: () => _openMaps(data.locationQuery!),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                        border: Border.all(
+                          color: AppColors.primary.withOpacity(0.2),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.location_on_rounded,
-                              color: AppColors.primary, size: 14),
+                          Icon(
+                            Icons.location_on_rounded,
+                            color: AppColors.primary,
+                            size: 14,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'Lihat di Maps',
@@ -948,7 +956,6 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Warning if items not detected well
           if (!hasValidItems)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -961,7 +968,11 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, color: Colors.orange, size: 16),
+                    const Icon(
+                      Icons.info_outline,
+                      color: Colors.orange,
+                      size: 16,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -978,18 +989,26 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
             ),
 
           const SizedBox(height: 16),
-          Divider(color: AppColors.divider, height: 1, indent: 20, endIndent: 20),
+          Divider(
+            color: AppColors.divider,
+            height: 1,
+            indent: 20,
+            endIndent: 20,
+          ),
           const SizedBox(height: 8),
 
-          // Item list
           ...data.items.asMap().entries.map((entry) {
             final item = entry.value;
             return _buildItemRow(item);
           }),
 
-          Divider(color: AppColors.divider, thickness: 1.5, indent: 20, endIndent: 20),
+          Divider(
+            color: AppColors.divider,
+            thickness: 1.5,
+            indent: 20,
+            endIndent: 20,
+          ),
 
-          // Total
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             child: Row(
@@ -1113,7 +1132,12 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
 
   Widget _buildBottomButtons() {
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -1191,12 +1215,36 @@ class _ScanFramePainter extends CustomPainter {
 
     canvas.drawLine(Offset(corner, 0), Offset(corner + len, 0), paint);
     canvas.drawLine(Offset(corner, 0), Offset(corner, len), paint);
-    canvas.drawLine(Offset(size.width - corner - len, 0), Offset(size.width - corner, 0), paint);
-    canvas.drawLine(Offset(size.width - corner, 0), Offset(size.width - corner, len), paint);
-    canvas.drawLine(Offset(corner, size.height - len), Offset(corner, size.height), paint);
-    canvas.drawLine(Offset(corner, size.height), Offset(corner + len, size.height), paint);
-    canvas.drawLine(Offset(size.width - corner, size.height - len), Offset(size.width - corner, size.height), paint);
-    canvas.drawLine(Offset(size.width - corner - len, size.height), Offset(size.width - corner, size.height), paint);
+    canvas.drawLine(
+      Offset(size.width - corner - len, 0),
+      Offset(size.width - corner, 0),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width - corner, 0),
+      Offset(size.width - corner, len),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(corner, size.height - len),
+      Offset(corner, size.height),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(corner, size.height),
+      Offset(corner + len, size.height),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width - corner, size.height - len),
+      Offset(size.width - corner, size.height),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width - corner - len, size.height),
+      Offset(size.width - corner, size.height),
+      paint,
+    );
 
     final linePaint = Paint()
       ..color = Colors.white54
@@ -1218,7 +1266,9 @@ class _OrDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Divider(color: Colors.white.withOpacity(0.3), thickness: 1)),
+        Expanded(
+          child: Divider(color: Colors.white.withOpacity(0.3), thickness: 1),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
@@ -1226,7 +1276,9 @@ class _OrDivider extends StatelessWidget {
             style: GoogleFonts.poppins(fontSize: 13, color: Colors.white70),
           ),
         ),
-        Expanded(child: Divider(color: Colors.white.withOpacity(0.3), thickness: 1)),
+        Expanded(
+          child: Divider(color: Colors.white.withOpacity(0.3), thickness: 1),
+        ),
       ],
     );
   }

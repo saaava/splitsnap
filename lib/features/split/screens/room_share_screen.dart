@@ -37,9 +37,9 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
   }
 
   int get _grandTotal => widget.items.fold(
-        0,
-        (sum, item) => sum + ((item['totalPrice'] as int?) ?? 0),
-      );
+    0,
+    (sum, item) => sum + ((item['totalPrice'] as int?) ?? 0),
+  );
 
   String _formatRupiah(int amount) {
     if (amount == 0) return 'Rp 0';
@@ -91,7 +91,11 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
         backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -107,7 +111,7 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            _buildQRCard(),
+            _buildCodeCard(),
             const SizedBox(height: 16),
             _buildBillCard(),
             const SizedBox(height: 80),
@@ -118,10 +122,11 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
     );
   }
 
-  Widget _buildQRCard() {
+  /// Hanya tampilkan kode room + tombol Salin Kode (tanpa QR, tanpa Bagikan)
+  Widget _buildCodeCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -135,109 +140,53 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
       ),
       child: Column(
         children: [
-          // QR Code widget (generated from room code)
-          Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.divider),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CustomPaint(
-                painter: _QRPainter(data: _roomCode),
-                size: const Size(200, 200),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
           Text(
-            'Atau gunakan kode room',
+            'Kode Room',
             style: GoogleFonts.poppins(
               fontSize: 13,
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           // Room code display
           Text(
-            _roomCode.split('').join(' '),
+            _roomCode.split('').join('  '),
             style: GoogleFonts.poppins(
-              fontSize: 28,
+              fontSize: 36,
               fontWeight: FontWeight.w800,
-              letterSpacing: 6,
+              letterSpacing: 4,
               color: AppColors.primary,
             ),
           ),
-          const SizedBox(height: 16),
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: _actionButton(
-                  label: 'Bagikan',
-                  icon: Icons.share_rounded,
-                  onTap: () {
-                    // Share functionality placeholder
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Fitur share segera hadir',
-                          style: GoogleFonts.poppins(fontSize: 12),
-                        ),
-                        backgroundColor: AppColors.primary,
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                ),
+          const SizedBox(height: 20),
+          // Hanya tombol Salin Kode
+          GestureDetector(
+            onTap: _copyCode,
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.divider, width: 1.5),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _actionButton(
-                  label: 'Salin Kode',
-                  icon: Icons.copy_rounded,
-                  onTap: _copyCode,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _actionButton({
-    required String label,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 44,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.divider, width: 1.5),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 16, color: AppColors.primary),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.copy_rounded, size: 16, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Salin Kode',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -288,7 +237,7 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          // Items list
+          // Items list — TIDAK ada centang, tampil biasa
           ...widget.items.map((item) => _buildItemRow(item)),
           const SizedBox(height: 8),
           Divider(color: AppColors.divider, thickness: 1),
@@ -310,7 +259,7 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: AppColors.primary,
                 ),
               ),
             ],
@@ -324,30 +273,12 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
     final name = item['name'] as String? ?? '';
     final qty = item['quantity'] as int? ?? 1;
     final totalPrice = item['totalPrice'] as int? ?? 0;
-    final checked = item['checked'] as bool? ?? true;
-
     final displayName = qty > 1 ? '$name x$qty' : name;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Container(
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              color: checked ? AppColors.primary : Colors.transparent,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: checked ? AppColors.primary : AppColors.divider,
-                width: 1.5,
-              ),
-            ),
-            child: checked
-                ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
-                : null,
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Text(
               displayName,
@@ -374,7 +305,10 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
   Widget _buildBottomButton() {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        20, 12, 20, MediaQuery.of(context).padding.bottom + 12,
+        20,
+        12,
+        20,
+        MediaQuery.of(context).padding.bottom + 12,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -410,83 +344,19 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
 
   String _formatDisplayDate(DateTime dt) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
-  }
-}
-
-// ─── Simple QR-like grid painter (visual only, not a real QR) ──────────────
-// For a real QR, add the `qr_flutter` package and replace this with:
-//   QrImageView(data: roomCode, version: QrVersions.auto, size: 200)
-class _QRPainter extends CustomPainter {
-  final String data;
-  _QRPainter({required this.data});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black;
-    final bg = Paint()..color = Colors.white;
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bg);
-
-    // Use data string to seed a deterministic grid pattern
-    final rng = _SeededRandom(data.codeUnits.fold(0, (a, b) => a * 31 + b));
-
-    const modules = 21; // 21×21 QR-like grid
-    final cellSize = size.width / modules;
-    final quiet = cellSize; // quiet zone offset
-
-    // Draw finder patterns (3 corners)
-    _drawFinder(canvas, paint, 0, 0, cellSize);
-    _drawFinder(canvas, paint, (modules - 7) * cellSize, 0, cellSize);
-    _drawFinder(canvas, paint, 0, (modules - 7) * cellSize, cellSize);
-
-    // Draw random data modules (skip finder zones)
-    for (int row = 0; row < modules; row++) {
-      for (int col = 0; col < modules; col++) {
-        if (_isFinderZone(row, col, modules)) continue;
-        if (rng.nextBool()) {
-          canvas.drawRect(
-            Rect.fromLTWH(
-              col * cellSize + 0.5,
-              row * cellSize + 0.5,
-              cellSize - 1,
-              cellSize - 1,
-            ),
-            paint,
-          );
-        }
-      }
-    }
-  }
-
-  void _drawFinder(Canvas canvas, Paint paint, double x, double y, double cell) {
-    // Outer 7×7 black
-    canvas.drawRect(Rect.fromLTWH(x, y, cell * 7, cell * 7), paint);
-    // Inner 5×5 white
-    final white = Paint()..color = Colors.white;
-    canvas.drawRect(Rect.fromLTWH(x + cell, y + cell, cell * 5, cell * 5), white);
-    // Center 3×3 black
-    canvas.drawRect(Rect.fromLTWH(x + cell * 2, y + cell * 2, cell * 3, cell * 3), paint);
-  }
-
-  bool _isFinderZone(int row, int col, int modules) {
-    if (row < 8 && col < 8) return true;
-    if (row < 8 && col >= modules - 8) return true;
-    if (row >= modules - 8 && col < 8) return true;
-    return false;
-  }
-
-  @override
-  bool shouldRepaint(_QRPainter old) => old.data != data;
-}
-
-class _SeededRandom {
-  int _seed;
-  _SeededRandom(this._seed);
-  bool nextBool() {
-    _seed = (_seed * 1664525 + 1013904223) & 0xFFFFFFFF;
-    return (_seed & 1) == 0;
   }
 }
