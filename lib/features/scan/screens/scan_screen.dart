@@ -9,11 +9,9 @@ import 'package:splitsnap/core/theme/app_theme.dart';
 import 'package:splitsnap/features/split/screens/room_share_screen.dart';
 import 'package:splitsnap/features/history/screens/history_screen.dart';
 
-// ─── Model ─────────────────────────────────────────────────────────────────
-
 class ReceiptItem {
   final String name;
-  int quantity;
+  final int quantity;
   final int unitPrice;
 
   ReceiptItem({
@@ -25,11 +23,11 @@ class ReceiptItem {
   int get totalPrice => unitPrice * quantity;
 
   Map<String, dynamic> toMap() => {
-    'name': name,
-    'quantity': quantity,
-    'unitPrice': unitPrice,
-    'totalPrice': totalPrice,
-  };
+        'name': name,
+        'quantity': quantity,
+        'unitPrice': unitPrice,
+        'totalPrice': totalPrice,
+      };
 }
 
 class ReceiptData {
@@ -47,8 +45,6 @@ class ReceiptData {
 
   int get total => items.fold(0, (sum, i) => sum + i.totalPrice);
 }
-
-// ─── Main Screen ────────────────────────────────────────────────────────────
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -69,10 +65,7 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _fadeCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
+    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
   }
 
@@ -82,18 +75,10 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // ── Permission helpers ──────────────────────────────────────────────────
-
   Future<bool> _requestCameraPermission() async {
     final status = await Permission.camera.request();
-    if (status.isPermanentlyDenied) {
-      if (mounted) {
-        _showSettingsDialog(
-          'Kamera',
-          'Izin kamera diperlukan untuk scan struk.',
-        );
-      }
-      return false;
+    if (status.isPermanentlyDenied && mounted) {
+      _showSettingsDialog('Kamera', 'Izin kamera diperlukan untuk scan struk.');
     }
     return status.isGranted;
   }
@@ -102,20 +87,12 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     PermissionStatus status;
     if (Platform.isAndroid) {
       status = await Permission.photos.request();
-      if (!status.isGranted) {
-        status = await Permission.storage.request();
-      }
+      if (!status.isGranted) status = await Permission.storage.request();
     } else {
       status = await Permission.photos.request();
     }
-    if (status.isPermanentlyDenied) {
-      if (mounted) {
-        _showSettingsDialog(
-          'Galeri',
-          'Izin galeri diperlukan untuk memilih foto struk.',
-        );
-      }
-      return false;
+    if (status.isPermanentlyDenied && mounted) {
+      _showSettingsDialog('Galeri', 'Izin galeri diperlukan untuk memilih foto struk.');
     }
     return status.isGranted;
   }
@@ -125,155 +102,83 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Izin $type Diperlukan',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-        ),
+        title: Text('Izin $type Diperlukan', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
         content: Text(message, style: GoogleFonts.poppins(fontSize: 13)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Batal',
-              style: GoogleFonts.poppins(color: AppColors.textSecondary),
-            ),
+            child: Text('Batal', style: GoogleFonts.poppins(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              openAppSettings();
-            },
+            onPressed: () { Navigator.pop(context); openAppSettings(); },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: Text(
-              'Buka Pengaturan',
-              style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
-            ),
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: Text('Buka Pengaturan', style: GoogleFonts.poppins(color: Colors.white, fontSize: 13)),
           ),
         ],
       ),
     );
   }
 
-  // ── Image picking ────────────────────────────────────────────────────────
-
   Future<void> _pickFromCamera() async {
-    final granted = await _requestCameraPermission();
-    if (!granted) return;
-    final xfile = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 90,
-      maxWidth: 2000,
-    );
+    if (!await _requestCameraPermission()) return;
+    final xfile = await _picker.pickImage(source: ImageSource.camera, imageQuality: 90, maxWidth: 2000);
     if (xfile != null) {
-      setState(() {
-        _imageFile = File(xfile.path);
-        _receiptData = null;
-        _errorMessage = null;
-      });
+      setState(() { _imageFile = File(xfile.path); _receiptData = null; _errorMessage = null; });
       await _processImage();
     }
   }
 
   Future<void> _pickFromGallery() async {
-    final granted = await _requestGalleryPermission();
-    if (!granted) return;
-    final xfile = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 90,
-      maxWidth: 2000,
-    );
+    if (!await _requestGalleryPermission()) return;
+    final xfile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 90, maxWidth: 2000);
     if (xfile != null) {
-      setState(() {
-        _imageFile = File(xfile.path);
-        _receiptData = null;
-        _errorMessage = null;
-      });
+      setState(() { _imageFile = File(xfile.path); _receiptData = null; _errorMessage = null; });
       await _processImage();
     }
   }
 
-  // ── OCR Processing ───────────────────────────────────────────────────────
-
   Future<void> _processImage() async {
     if (_imageFile == null) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
+    setState(() { _isLoading = true; _errorMessage = null; });
     try {
       final inputImage = InputImage.fromFile(_imageFile!);
       final textRecognizer = TextRecognizer();
       final recognized = await textRecognizer.processImage(inputImage);
       await textRecognizer.close();
-
-      final parsed = _parseReceiptText(recognized.text);
-
-      setState(() {
-        _receiptData = parsed;
-        _isLoading = false;
-      });
+      setState(() { _receiptData = _parseReceiptText(recognized.text); _isLoading = false; });
       _fadeCtrl.forward(from: 0);
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Gagal memproses struk: ${e.toString()}';
-      });
+      setState(() { _isLoading = false; _errorMessage = 'Gagal memproses struk: ${e.toString()}'; });
     }
   }
 
-  // ── ROBUST MULTI-FORMAT RECEIPT PARSER ──────────────────────────────────
   ReceiptData _parseReceiptText(String rawText) {
-    final lines = rawText
-        .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
-        .toList();
-
-    String storeName = _extractStoreName(lines);
-    String date = _extractDate(lines);
-    final items = _extractItems(lines);
-
+    final lines = rawText.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
     return ReceiptData(
-      storeName: storeName,
-      date: date,
-      items: items.isEmpty
-          ? [
-              ReceiptItem(
-                name: 'Item tidak terdeteksi - coba foto lebih jelas',
-                quantity: 1,
-                unitPrice: 0,
-              ),
-            ]
-          : items,
-      locationQuery: storeName != 'Toko' ? storeName : null,
+      storeName: _extractStoreName(lines),
+      date: _extractDate(lines),
+      items: _extractItems(lines).isEmpty
+          ? [ReceiptItem(name: 'Item tidak terdeteksi - coba foto lebih jelas', quantity: 1, unitPrice: 0)]
+          : _extractItems(lines),
+      locationQuery: _extractStoreName(lines) != 'Toko' ? _extractStoreName(lines) : null,
     );
   }
 
   String _extractStoreName(List<String> lines) {
-    final datePattern = RegExp(r'^\d{4}[-/]\d{2}[-/]\d{2}');
-    final timePattern = RegExp(r'^\d{2}:\d{2}');
-    final numberOnlyPattern = RegExp(r'^\d+$');
-    // Filter tanggal format dd.mm.yyyy atau dd/mm/yyyy
-    final shortDatePattern = RegExp(r'^\d{1,2}[./]\d{1,2}[./]\d{2,4}');
-
+    final filters = [
+      RegExp(r'^\d{4}[-/]\d{2}[-/]\d{2}'),
+      RegExp(r'^\d{2}:\d{2}'),
+      RegExp(r'^\d+$'),
+      RegExp(r'^\d{1,2}[./]\d{1,2}[./]\d{2,4}'),
+    ];
     for (final line in lines.take(8)) {
-      if (datePattern.hasMatch(line)) continue;
-      if (timePattern.hasMatch(line)) continue;
-      if (numberOnlyPattern.hasMatch(line)) continue;
-      if (shortDatePattern.hasMatch(line)) continue;
+      if (filters.any((p) => p.hasMatch(line))) continue;
       if (line.length < 3) continue;
-      if (RegExp(r'^(Jl|Jalan|No\.|Jl\.)', caseSensitive: false).hasMatch(line))
-        continue;
+      if (RegExp(r'^(Jl|Jalan|No\.|Jl\.)', caseSensitive: false).hasMatch(line)) continue;
       if (RegExp(r'^[\d\s.,]+$').hasMatch(line)) continue;
-      if (RegExp(r'[a-zA-Z]').hasMatch(line) && line.length >= 3) {
-        return _cleanText(line);
-      }
+      if (RegExp(r'[a-zA-Z]').hasMatch(line)) return _cleanText(line);
     }
     return 'Toko';
   }
@@ -283,356 +188,162 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
       RegExp(r'\d{4}[-/]\d{1,2}[-/]\d{1,2}'),
       RegExp(r'\d{1,2}[-/]\d{1,2}[-/]\d{2,4}'),
       RegExp(r'\d{1,2}[.]\d{1,2}[.]\d{2,4}'),
-      RegExp(
-        r'\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2,4}',
-        caseSensitive: false,
-      ),
+      RegExp(r'\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2,4}', caseSensitive: false),
     ];
     for (final line in lines) {
-      for (final pattern in patterns) {
-        final match = pattern.firstMatch(line);
-        if (match != null) return match.group(0)!;
+      for (final p in patterns) {
+        final m = p.firstMatch(line);
+        if (m != null) return m.group(0)!;
       }
     }
     return '';
   }
 
   List<ReceiptItem> _extractItems(List<String> lines) {
-    final items = <ReceiptItem>[];
-
     final skipKeywords = RegExp(
       r'\b(total|tunai|kembali|kembal|ppn|pajak|tax|subtotal|sub\s*total|'
-      r'cash|change|kembalian|uang kembali|bayar|bayaran|pembayaran|payment|'
+      r'cash|change|kembalian|bayar|bayaran|pembayaran|payment|'
       r'debit|kredit|credit|bca|mandiri|bri|bni|dana|ovo|gopay|shopeepay|'
-      r'npwp|kasir|cashier|terima kasih|thank you|closed|open|'
-      r'receipt|struk|invoice|nota|grand total|'
-      r'service charge|service fee|tax amount|'
-      r'harga total|jumlah|diskon|discount|promo|voucher|'
-      r'ongkos|ongkir|delivery|member|poin|point|'
-      r'tgl|tanggal|jam|waktu|no\s*struk|no\s*nota|no\s*faktur|'
-      r'item qty|qty item|total qty|total item|total pcs|pcs total)\b',
+      r'npwp|kasir|cashier|terima kasih|thank you|receipt|struk|invoice|nota|'
+      r'grand total|service charge|harga total|jumlah|diskon|discount|'
+      r'ongkos|ongkir|delivery|member|poin|point|tgl|tanggal|jam|waktu|'
+      r'no\s*struk|no\s*nota|item qty|qty item|total qty|total item)\b',
       caseSensitive: false,
     );
-
-    // Pattern tanggal pendek: dd.mm.yyyy, dd/mm/yyyy, d.m.yyyy dll
     final dateLine = RegExp(r'^\d{1,2}[./]\d{1,2}[./]\d{2,4}');
-
     final priceRegex = RegExp(r'\b(\d{1,3}(?:[.,]\d{3})+|\d{4,7})\b');
 
-    final formatCPattern = RegExp(
-      r'^(\d{1,2})\s+([A-Za-z][A-Za-z\s/\-]+?)\s+([\d.,]{4,})$',
-    );
-    int formatCMatches = 0;
-    for (final line in lines) {
-      if (formatCPattern.hasMatch(line)) formatCMatches++;
-    }
-
-    if (formatCMatches >= 2) {
-      return _parseFormatC(lines, skipKeywords, priceRegex, dateLine);
-    }
-
+    final formatCPattern = RegExp(r'^(\d{1,2})\s+([A-Za-z][A-Za-z\s/\-]+?)\s+([\d.,]{4,})$');
+    int cCount = 0;
+    for (final line in lines) { if (formatCPattern.hasMatch(line)) cCount++; }
+    if (cCount >= 2) return _parseFormatC(lines, skipKeywords, priceRegex, dateLine);
     return _parseFormatAB(lines, skipKeywords, priceRegex, dateLine);
   }
 
-  List<ReceiptItem> _parseFormatC(
-    List<String> lines,
-    RegExp skipKeywords,
-    RegExp priceRegex,
-    RegExp dateLine,
-  ) {
+  List<ReceiptItem> _parseFormatC(List<String> lines, RegExp skip, RegExp priceRegex, RegExp dateLine) {
     final items = <ReceiptItem>[];
-    final linePattern = RegExp(r'^(\d{1,2})\s+(.+?)\s+([\d.,]{4,})\s*$');
-
+    final lp = RegExp(r'^(\d{1,2})\s+(.+?)\s+([\d.,]{4,})\s*$');
     for (final line in lines) {
-      if (skipKeywords.hasMatch(line.toLowerCase())) continue;
-      // Skip baris tanggal
-      if (dateLine.hasMatch(line)) continue;
-
-      final match = linePattern.firstMatch(line);
-      if (match == null) continue;
-
-      final qty = int.tryParse(match.group(1)!) ?? 1;
-      final rawName = match.group(2)!.trim();
-      final priceStr = _normalizePrice(match.group(3)!);
-      final price = int.tryParse(priceStr) ?? 0;
-
+      if (skip.hasMatch(line.toLowerCase()) || dateLine.hasMatch(line)) continue;
+      final m = lp.firstMatch(line);
+      if (m == null) continue;
+      final qty = int.tryParse(m.group(1)!) ?? 1;
+      final price = int.tryParse(_normalizePrice(m.group(3)!)) ?? 0;
       if (price < 100 || price > 10000000) continue;
-      final name = _cleanItemName(rawName);
+      final name = _cleanItemName(m.group(2)!.trim());
       if (name.length < 2) continue;
-
-      final unitPrice = qty > 0 ? price ~/ qty : price;
-      items.add(ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice));
+      items.add(ReceiptItem(name: name, quantity: qty, unitPrice: qty > 0 ? price ~/ qty : price));
     }
     return items;
   }
 
-  List<ReceiptItem> _parseFormatAB(
-    List<String> lines,
-    RegExp skipKeywords,
-    RegExp priceRegex,
-    RegExp dateLine,
-  ) {
+  List<ReceiptItem> _parseFormatAB(List<String> lines, RegExp skip, RegExp priceRegex, RegExp dateLine) {
     final items = <ReceiptItem>[];
-
     int footerStart = lines.length;
     for (int i = 0; i < lines.length; i++) {
-      final l = lines[i].toLowerCase().trim();
-      if (RegExp(
-        r'^(subtotal|sub total|sub-total|total qty|total item|total pcs|'
-        r'grand total|total\s*:?\s*[\d.,]+|tunai|kembali|kembalian|payment|'
-        r'terima kasih|thank you)',
-      ).hasMatch(l)) {
-        footerStart = i;
-        break;
+      if (RegExp(r'^(subtotal|sub total|total\s*:?\s*[\d.,]+|tunai|kembali|terima kasih|thank you)').hasMatch(lines[i].toLowerCase().trim())) {
+        footerStart = i; break;
       }
     }
-
     int i = 0;
     while (i < footerStart) {
       final line = lines[i];
-      final lineLower = line.toLowerCase();
+      final ll = line.toLowerCase();
+      if (dateLine.hasMatch(line) || skip.hasMatch(ll) || line.length < 2 || RegExp(r'^[-=*]+$').hasMatch(line)) { i++; continue; }
 
-      // Skip baris tanggal (misal: 18.7.2024 08:49)
-      if (dateLine.hasMatch(line)) {
-        i++;
-        continue;
-      }
-
-      if (skipKeywords.hasMatch(lineLower) ||
-          line.length < 2 ||
-          RegExp(r'^[-=*]+$').hasMatch(line)) {
-        i++;
-        continue;
-      }
-
-      final numberedItemPattern = RegExp(r'^\d+\.\s+(.+)$');
-      final numberedMatch = numberedItemPattern.firstMatch(line);
-
-      if (numberedMatch != null) {
-        final rawName = numberedMatch.group(1)!.trim();
-        String name = _cleanItemName(rawName);
-
-        int qty = 1;
-        int unitPrice = 0;
-
-        if (i + 1 < footerStart) {
-          final nextLine = lines[i + 1];
-          final qtyPriceInfo = _parseQtyPriceLine(nextLine);
-          if (qtyPriceInfo != null) {
-            qty = qtyPriceInfo['qty'] as int;
-            unitPrice = qtyPriceInfo['unitPrice'] as int;
-            i += 2;
-          } else {
-            final prices = priceRegex.allMatches(line).toList();
-            if (prices.isNotEmpty) {
-              final p =
-                  int.tryParse(_normalizePrice(prices.last.group(0)!)) ?? 0;
-              if (p >= 100 && p <= 10000000) unitPrice = p;
-            }
-            i++;
-          }
-        } else {
-          i++;
-        }
-
-        if (name.length >= 2 && unitPrice > 0) {
-          items.add(
-            ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice),
-          );
-        }
-        continue;
-      }
-
-      final pricesInLine = priceRegex.allMatches(line).toList();
-      if (pricesInLine.isNotEmpty) {
-        final lastPriceMatch = pricesInLine.last;
-        final price =
-            int.tryParse(_normalizePrice(lastPriceMatch.group(0)!)) ?? 0;
-
+      final prices = priceRegex.allMatches(line).toList();
+      if (prices.isNotEmpty) {
+        final price = int.tryParse(_normalizePrice(prices.last.group(0)!)) ?? 0;
         if (price >= 100 && price <= 10000000) {
-          String name = line.substring(0, lastPriceMatch.start).trim();
-          name = name.replaceAll(RegExp(r'\b[Rr][Pp]\.?\s*'), '').trim();
-          name = _cleanItemName(name);
-
+          String name = line.substring(0, prices.last.start).trim()
+              .replaceAll(RegExp(r'\b[Rr][Pp]\.?\s*'), '').trim();
           int qty = 1;
-          final qtyMatch = RegExp(r'\b(\d{1,2})\s*[xX@]\s*').firstMatch(name);
-          if (qtyMatch != null) {
-            qty = int.tryParse(qtyMatch.group(1)!) ?? 1;
-            name = name.replaceFirst(qtyMatch.group(0)!, '').trim();
-            name = _cleanItemName(name);
+          final qm = RegExp(r'\b(\d{1,2})\s*[xX@]\s*').firstMatch(name);
+          if (qm != null) { qty = int.tryParse(qm.group(1)!) ?? 1; name = name.replaceFirst(qm.group(0)!, '').trim(); }
+          name = _cleanItemName(name);
+          if (name.length >= 2 && !skip.hasMatch(name.toLowerCase())) {
+            items.add(ReceiptItem(name: name, quantity: qty, unitPrice: qty > 1 ? price ~/ qty : price));
           }
-
-          if (name.length >= 2 && !skipKeywords.hasMatch(name.toLowerCase())) {
-            final unitPrice = qty > 1 ? price ~/ qty : price;
-            items.add(
-              ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice),
-            );
-          }
-          i++;
-          continue;
+          i++; continue;
         }
       }
 
       if (i + 1 < footerStart) {
         final nextLine = lines[i + 1];
-        final qtyPriceInfo = _parseQtyPriceLine(nextLine);
-
-        if (qtyPriceInfo != null && !skipKeywords.hasMatch(lineLower)) {
-          final rawName = line;
-          if (RegExp(r'[a-zA-Z]').hasMatch(rawName) &&
-              rawName.length >= 3 &&
-              !RegExp(r'^\d{4}').hasMatch(rawName)) {
-            String name = _cleanItemName(rawName);
-            if (name.length >= 2) {
-              final qty = qtyPriceInfo['qty'] as int;
-              final unitPrice = qtyPriceInfo['unitPrice'] as int;
-              if (unitPrice > 0) {
-                items.add(
-                  ReceiptItem(name: name, quantity: qty, unitPrice: unitPrice),
-                );
-                i += 2;
-                continue;
-              }
-            }
+        final qpi = _parseQtyPriceLine(nextLine);
+        if (qpi != null && !skip.hasMatch(ll) && RegExp(r'[a-zA-Z]').hasMatch(line) && line.length >= 3 && !RegExp(r'^\d{4}').hasMatch(line)) {
+          final name = _cleanItemName(line);
+          if (name.length >= 2 && qpi['unitPrice']! > 0) {
+            items.add(ReceiptItem(name: name, quantity: qpi['qty']!, unitPrice: qpi['unitPrice']!));
+            i += 2; continue;
           }
         }
       }
-
       i++;
     }
-
     return items;
   }
 
   Map<String, int>? _parseQtyPriceLine(String line) {
-    final pattern1 = RegExp(
-      r'^(\d{1,3})\s*(?:[a-zA-Z/]+\s+)?[xX@]\s*([\d.,]+)',
-    );
-    final m1 = pattern1.firstMatch(line);
-    if (m1 != null) {
-      final qty = int.tryParse(m1.group(1)!) ?? 1;
-      final unitPriceStr = _normalizePrice(m1.group(2)!);
-      final unitPrice = int.tryParse(unitPriceStr) ?? 0;
-      if (unitPrice >= 100 && unitPrice <= 5000000) {
-        return {'qty': qty, 'unitPrice': unitPrice};
-      }
+    final m = RegExp(r'^(\d{1,3})\s*(?:[a-zA-Z/]+\s+)?[xX@]\s*([\d.,]+)').firstMatch(line);
+    if (m != null) {
+      final qty = int.tryParse(m.group(1)!) ?? 1;
+      final up = int.tryParse(_normalizePrice(m.group(2)!)) ?? 0;
+      if (up >= 100 && up <= 5000000) return {'qty': qty, 'unitPrice': up};
     }
-
-    final priceOnly = RegExp(r'^[Rr][Pp]\.?\s*([\d.,]+)\s*$');
-    final m2 = priceOnly.firstMatch(line.trim());
+    final m2 = RegExp(r'^[Rr][Pp]\.?\s*([\d.,]+)\s*$').firstMatch(line.trim());
     if (m2 != null) {
-      final price = int.tryParse(_normalizePrice(m2.group(1)!)) ?? 0;
-      if (price >= 100 && price <= 10000000) {
-        return {'qty': 1, 'unitPrice': price};
-      }
+      final p = int.tryParse(_normalizePrice(m2.group(1)!)) ?? 0;
+      if (p >= 100 && p <= 10000000) return {'qty': 1, 'unitPrice': p};
     }
-
     return null;
   }
 
-  String _normalizePrice(String raw) {
-    String clean = raw.replaceAll('.', '').replaceAll(',', '');
-    return clean;
-  }
+  String _normalizePrice(String raw) => raw.replaceAll('.', '').replaceAll(',', '');
 
   String _cleanItemName(String raw) {
-    String name = raw.trim();
-    name = name.replaceAll(RegExp(r'^[Rr][Pp]\.?\s*'), '');
-    name = name.replaceAll(RegExp(r'^[-*|]+|[-*|]+$'), '').trim();
-    name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+    String name = raw.trim()
+        .replaceAll(RegExp(r'^[Rr][Pp]\.?\s*'), '')
+        .replaceAll(RegExp(r'^[-*|]+|[-*|]+$'), '')
+        .replaceAll(RegExp(r'\s+'), ' ').trim();
     if (name == name.toLowerCase() && name.isNotEmpty) {
-      name = name
-          .split(' ')
-          .map((w) {
-            if (w.isEmpty) return w;
-            return w[0].toUpperCase() + w.substring(1);
-          })
-          .join(' ');
+      name = name.split(' ').map((w) => w.isEmpty ? w : w[0].toUpperCase() + w.substring(1)).join(' ');
     }
     return name;
   }
 
-  String _cleanText(String raw) {
-    return raw.replaceAll(RegExp(r'[^\w\s.,\-]'), '').trim();
-  }
-
-  // ── Open Maps ───────────────────────────────────────────────────────────
+  String _cleanText(String raw) => raw.replaceAll(RegExp(r'[^\w\s.,\-]'), '').trim();
 
   Future<void> _openMaps(String query) async {
-    final encoded = Uri.encodeComponent(query);
-    final uri = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=$encoded',
-    );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Tidak bisa membuka Maps',
-              style: GoogleFonts.poppins(fontSize: 12),
-            ),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
+    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}');
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
-
-  // ── Save to history ──────────────────────────────────────────────────────
 
   void _saveToHistory() {
     if (_receiptData == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Struk disimpan ke Riwayat ✅',
-          style: GoogleFonts.poppins(fontSize: 12),
-        ),
-        backgroundColor: AppColors.success,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Struk disimpan ke Riwayat ✅', style: GoogleFonts.poppins(fontSize: 12)),
+      backgroundColor: AppColors.success, duration: const Duration(seconds: 2),
+    ));
     Future.delayed(const Duration(milliseconds: 1800), () {
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HistoryScreen()),
-          (route) => route.isFirst,
-        );
-      }
+      if (mounted) Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HistoryScreen()), (r) => r.isFirst);
     });
   }
 
-  // ── Navigate to split room ───────────────────────────────────────────────
-  // Items dikirim dengan checked: false — user centang sendiri di room
-
   void _goToSplit() {
     if (_receiptData == null) return;
-    final items = _receiptData!.items
-        .map(
-          (i) => {
-            'name': i.name,
-            'quantity': i.quantity,
-            'unitPrice': i.unitPrice,
-            'totalPrice': i.totalPrice,
-            'checked': false, // user centang sendiri
-          },
-        )
-        .toList();
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => RoomShareScreen(
-          items: items,
-          storeName: _receiptData!.storeName,
-          date: _receiptData!.date,
-        ),
-      ),
-    );
+    final items = _receiptData!.items.map((i) => {
+      'name': i.name,
+      'quantity': i.quantity,
+      'unitPrice': i.unitPrice,
+      'totalPrice': i.totalPrice,
+      'checked': false,
+    }).toList();
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => RoomShareScreen(items: items, storeName: _receiptData!.storeName, date: _receiptData!.date),
+    ));
   }
-
-  // ── Format helpers ──────────────────────────────────────────────────────
 
   String _formatRupiah(int amount) {
     if (amount == 0) return 'Rp 0';
@@ -645,641 +356,226 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     return 'Rp ${buf.toString()}';
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildTopBar(),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _buildCameraArea(),
-                    _buildActionButtons(),
-                    if (_isLoading) _buildLoadingState(),
-                    if (_errorMessage != null) _buildErrorState(),
-                    if (_receiptData != null && !_isLoading)
-                      FadeTransition(
-                        opacity: _fadeAnim,
-                        child: _buildReceiptResult(),
-                      ),
-                    const SizedBox(height: 100),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+        child: Column(children: [
+          _buildTopBar(),
+          Expanded(child: SingleChildScrollView(child: Column(children: [
+            _buildCameraArea(),
+            _buildActionButtons(),
+            if (_isLoading) _buildLoadingState(),
+            if (_errorMessage != null) _buildErrorState(),
+            if (_receiptData != null && !_isLoading)
+              FadeTransition(opacity: _fadeAnim, child: _buildReceiptResult()),
+            const SizedBox(height: 100),
+          ]))),
+        ]),
       ),
-      bottomNavigationBar: _receiptData != null && !_isLoading
-          ? _buildBottomButtons()
-          : null,
+      bottomNavigationBar: _receiptData != null && !_isLoading ? _buildBottomButtons() : null,
     );
   }
 
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: const Icon(
-              Icons.arrow_back_ios_new,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'Scan Struk',
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildTopBar() => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+    child: Row(children: [
+      GestureDetector(onTap: () => Navigator.pop(context),
+          child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20)),
+      const SizedBox(width: 12),
+      Text('Scan Struk', style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+    ]),
+  );
 
-  Widget _buildCameraArea() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      height: 220,
-      decoration: BoxDecoration(
-        color: AppColors.primaryDark.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.15)),
-      ),
-      child: _imageFile != null
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.file(
-                _imageFile!,
-                fit: BoxFit.cover,
-                width: double.infinity,
-              ),
-            )
-          : Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildScanFrame(),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Arahkan ke struk belanja',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Pastikan struk terlihat jelas & tidak buram',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white38,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
+  Widget _buildCameraArea() => Container(
+    margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+    height: 220,
+    decoration: BoxDecoration(
+      color: AppColors.primaryDark.withOpacity(0.6),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.white.withOpacity(0.15)),
+    ),
+    child: _imageFile != null
+        ? ClipRRect(borderRadius: BorderRadius.circular(20),
+            child: Image.file(_imageFile!, fit: BoxFit.cover, width: double.infinity))
+        : Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            SizedBox(width: 70, height: 60, child: CustomPaint(painter: _ScanFramePainter())),
+            const SizedBox(height: 12),
+            Text('Arahkan ke struk belanja', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 14)),
+            const SizedBox(height: 6),
+            Text('Pastikan struk terlihat jelas & tidak buram', style: GoogleFonts.poppins(color: Colors.white38, fontSize: 11)),
+          ])),
+  );
 
-  Widget _buildScanFrame() {
-    return SizedBox(
-      width: 70,
-      height: 60,
-      child: CustomPaint(painter: _ScanFramePainter()),
-    );
-  }
+  Widget _buildActionButtons() => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+    child: Column(children: [
+      _buildButton(label: 'Arahkan ke struk belanja', onTap: _pickFromCamera),
+      const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: _OrDivider()),
+      _buildButton(label: 'Pilih dari Galeri', onTap: _pickFromGallery),
+    ]),
+  );
 
-  Widget _buildActionButtons() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: Column(
-        children: [
-          _buildButton(
-            label: 'Arahkan ke struk belanja',
-            onTap: _pickFromCamera,
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: _OrDivider(),
-          ),
-          _buildButton(label: 'Pilih dari Galeri', onTap: _pickFromGallery),
-        ],
-      ),
-    );
-  }
+  Widget _buildButton({required String label, required VoidCallback onTap}) =>
+    GestureDetector(onTap: onTap, child: Container(
+      width: double.infinity, height: 52,
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+      alignment: Alignment.center,
+      child: Text(label, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary)),
+    ));
 
-  Widget _buildButton({required String label, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        height: 52,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.primary,
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildLoadingState() => Container(
+    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+    child: Column(children: [
+      const CircularProgressIndicator(color: AppColors.primary),
+      const SizedBox(height: 14),
+      Text('Menganalisis struk...', style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textSecondary)),
+      const SizedBox(height: 4),
+      Text('Mohon tunggu sebentar', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textHint)),
+    ]),
+  );
 
-  Widget _buildLoadingState() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          const CircularProgressIndicator(color: AppColors.primary),
-          const SizedBox(height: 14),
-          Text(
-            'Menganalisis struk...',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Mohon tunggu sebentar',
-            style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textHint),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.error.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: AppColors.error),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              _errorMessage!,
-              style: GoogleFonts.poppins(fontSize: 12, color: AppColors.error),
-            ),
-          ),
-          GestureDetector(
-            onTap: _processImage,
-            child: Text(
-              'Coba Lagi',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildErrorState() => Container(
+    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.error.withOpacity(0.3))),
+    child: Row(children: [
+      const Icon(Icons.error_outline, color: AppColors.error),
+      const SizedBox(width: 10),
+      Expanded(child: Text(_errorMessage!, style: GoogleFonts.poppins(fontSize: 12, color: AppColors.error))),
+      GestureDetector(onTap: _processImage,
+          child: Text('Coba Lagi', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary))),
+    ]),
+  );
 
   Widget _buildReceiptResult() {
     final data = _receiptData!;
-    final hasValidItems = data.items.any((i) => i.unitPrice > 0);
-
+    final hasValid = data.items.any((i) => i.unitPrice > 0);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        data.storeName,
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      if (data.date.isNotEmpty)
-                        Text(
-                          data.date,
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                    ],
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 8))]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(data.storeName, style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+              if (data.date.isNotEmpty)
+                Text(data.date, style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
+            ])),
+            if (data.locationQuery != null)
+              GestureDetector(
+                onTap: () => _openMaps(data.locationQuery!),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.2)),
                   ),
-                ),
-                if (data.locationQuery != null)
-                  GestureDetector(
-                    onTap: () => _openMaps(data.locationQuery!),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppColors.primary.withOpacity(0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.location_on_rounded,
-                            color: AppColors.primary,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Lihat di Maps',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          if (!hasValidItems)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.info_outline,
-                      color: Colors.orange,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Foto kurang jelas. Coba foto ulang dengan cahaya lebih terang.',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          color: Colors.orange.shade700,
-                        ),
-                      ),
-                    ),
-                  ],
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.location_on_rounded, color: AppColors.primary, size: 14),
+                    const SizedBox(width: 4),
+                    Text('Lihat di Maps', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                  ]),
                 ),
               ),
-            ),
-
-          const SizedBox(height: 16),
-          Divider(
-            color: AppColors.divider,
-            height: 1,
-            indent: 20,
-            endIndent: 20,
-          ),
-          const SizedBox(height: 8),
-
-          ...data.items.asMap().entries.map((entry) {
-            final item = entry.value;
-            return _buildItemRow(item);
-          }),
-
-          Divider(
-            color: AppColors.divider,
-            thickness: 1.5,
-            indent: 20,
-            endIndent: 20,
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total',
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  _formatRupiah(data.total),
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildItemRow(ReceiptItem item) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  '${_formatRupiah(item.unitPrice)} / pcs',
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Row(
-            children: [
-              _qtyButton(
-                icon: Icons.remove,
-                onTap: item.quantity > 1
-                    ? () => setState(() => item.quantity--)
-                    : null,
-              ),
-              SizedBox(
-                width: 32,
-                child: Text(
-                  '${item.quantity}',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              _qtyButton(
-                icon: Icons.add,
-                onTap: () => setState(() => item.quantity++),
-              ),
-            ],
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 80,
-            child: Text(
-              _formatRupiah(item.totalPrice),
-              textAlign: TextAlign.end,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _qtyButton({required IconData icon, VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 26,
-        height: 26,
-        decoration: BoxDecoration(
-          color: onTap != null
-              ? AppColors.primary.withOpacity(0.1)
-              : Colors.grey.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(7),
+          ]),
         ),
-        child: Icon(
-          icon,
-          size: 14,
-          color: onTap != null ? AppColors.primary : Colors.grey,
+        if (!hasValid)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.orange.withOpacity(0.08), borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3))),
+              child: Row(children: [
+                const Icon(Icons.info_outline, color: Colors.orange, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Foto kurang jelas. Coba foto ulang dengan cahaya lebih terang.',
+                    style: GoogleFonts.poppins(fontSize: 11, color: Colors.orange.shade700))),
+              ]),
+            ),
+          ),
+        const SizedBox(height: 16),
+        Divider(color: AppColors.divider, height: 1, indent: 20, endIndent: 20),
+        const SizedBox(height: 8),
+        // ── Item list: nama + qty sesuai struk + harga, TANPA tombol +/- ──
+        ...data.items.map((item) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(item.name, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              Text('${item.quantity}x · ${_formatRupiah(item.unitPrice)} / pcs',
+                  style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary)),
+            ])),
+            Text(_formatRupiah(item.totalPrice),
+                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          ]),
+        )),
+        Divider(color: AppColors.divider, thickness: 1.5, indent: 20, endIndent: 20),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('Total', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            Text(_formatRupiah(data.total), style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primary)),
+          ]),
         ),
-      ),
+      ]),
     );
   }
 
-  Widget _buildBottomButtons() {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        MediaQuery.of(context).padding.bottom + 12,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, -3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: _saveToHistory,
-              child: Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Simpan Pribadi',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: GestureDetector(
-              onTap: _goToSplit,
-              child: Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Buat Split',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildBottomButtons() => Container(
+    padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
+    decoration: BoxDecoration(color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, -3))]),
+    child: Row(children: [
+      Expanded(child: GestureDetector(onTap: _saveToHistory, child: Container(
+        height: 50, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)),
+        alignment: Alignment.center,
+        child: Text('Simpan Pribadi', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+      ))),
+      const SizedBox(width: 12),
+      Expanded(child: GestureDetector(onTap: _goToSplit, child: Container(
+        height: 50, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)),
+        alignment: Alignment.center,
+        child: Text('Buat Split', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+      ))),
+    ]),
+  );
 }
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
 
 class _ScanFramePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    const corner = 16.0;
-    const len = 20.0;
-
+    final paint = Paint()..color = Colors.white..strokeWidth = 2.5..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
+    const corner = 16.0; const len = 20.0;
     canvas.drawLine(Offset(corner, 0), Offset(corner + len, 0), paint);
     canvas.drawLine(Offset(corner, 0), Offset(corner, len), paint);
-    canvas.drawLine(
-      Offset(size.width - corner - len, 0),
-      Offset(size.width - corner, 0),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width - corner, 0),
-      Offset(size.width - corner, len),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(corner, size.height - len),
-      Offset(corner, size.height),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(corner, size.height),
-      Offset(corner + len, size.height),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width - corner, size.height - len),
-      Offset(size.width - corner, size.height),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width - corner - len, size.height),
-      Offset(size.width - corner, size.height),
-      paint,
-    );
-
-    final linePaint = Paint()
-      ..color = Colors.white54
-      ..strokeWidth = 1.5;
-    canvas.drawLine(
-      Offset(corner + 4, size.height / 2),
-      Offset(size.width - corner - 4, size.height / 2),
-      linePaint,
-    );
+    canvas.drawLine(Offset(size.width - corner - len, 0), Offset(size.width - corner, 0), paint);
+    canvas.drawLine(Offset(size.width - corner, 0), Offset(size.width - corner, len), paint);
+    canvas.drawLine(Offset(corner, size.height - len), Offset(corner, size.height), paint);
+    canvas.drawLine(Offset(corner, size.height), Offset(corner + len, size.height), paint);
+    canvas.drawLine(Offset(size.width - corner, size.height - len), Offset(size.width - corner, size.height), paint);
+    canvas.drawLine(Offset(size.width - corner - len, size.height), Offset(size.width - corner, size.height), paint);
+    canvas.drawLine(Offset(corner + 4, size.height / 2), Offset(size.width - corner - 4, size.height / 2),
+        Paint()..color = Colors.white54..strokeWidth = 1.5);
   }
-
-  @override
-  bool shouldRepaint(_) => false;
+  @override bool shouldRepaint(_) => false;
 }
 
 class _OrDivider extends StatelessWidget {
   const _OrDivider();
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Divider(color: Colors.white.withOpacity(0.3), thickness: 1),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            'Atau',
-            style: GoogleFonts.poppins(fontSize: 13, color: Colors.white70),
-          ),
-        ),
-        Expanded(
-          child: Divider(color: Colors.white.withOpacity(0.3), thickness: 1),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(child: Divider(color: Colors.white.withOpacity(0.3), thickness: 1)),
+    Padding(padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Text('Atau', style: GoogleFonts.poppins(fontSize: 13, color: Colors.white70))),
+    Expanded(child: Divider(color: Colors.white.withOpacity(0.3), thickness: 1)),
+  ]);
 }
