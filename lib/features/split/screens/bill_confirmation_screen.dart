@@ -1,14 +1,19 @@
+// lib/features/split/screens/bill_confirmation_screen.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:splitsnap/core/services/transaction_service.dart';
 import 'package:splitsnap/core/theme/app_theme.dart';
+import 'package:splitsnap/features/history/screens/history_screen.dart';
 
 class BillConfirmationScreen extends StatefulWidget {
   final String storeName;
   final String createdBy;
   final String date;
   final int total;
+  final int participantCount;
 
   const BillConfirmationScreen({
     super.key,
@@ -16,6 +21,7 @@ class BillConfirmationScreen extends StatefulWidget {
     required this.createdBy,
     required this.date,
     required this.total,
+    this.participantCount = 1,
   });
 
   @override
@@ -110,6 +116,22 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
     if (!mounted) return;
     setState(() => _isUploading = false);
 
+    // ✅ Simpan transaksi ke TransactionService dengan status Lunas
+    TransactionService.instance.addTransaction(
+      TransactionItem(
+        name: widget.storeName,
+        date: 'Baru saja',
+        people: '${widget.participantCount} orang',
+        amount: widget.total,
+        status: 'Lunas',
+        icon: Icons.receipt_long_outlined,
+        color: const Color(0xFFE8F5E9),
+        iconColor: const Color(0xFF2E7D32),
+      ),
+    );
+
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(children: [
@@ -123,15 +145,21 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
           ),
         ]),
         backgroundColor: AppColors.success,
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       ),
     );
 
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (mounted) Navigator.of(context).pop();
+    // ✅ Arahkan ke HistoryScreen (replace semua route sebelumnya kecuali home)
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HistoryScreen()),
+      (route) => route.isFirst, // tetap ada HomeScreen di stack paling bawah
+    );
   }
 
   @override
@@ -153,7 +181,6 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        // Total di kanan atas
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -239,7 +266,7 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          _detailRow('Room', widget.storeName),
+          _detailRow('Room / Toko', widget.storeName),
           const SizedBox(height: 10),
           _detailRow('Dibuat oleh', widget.createdBy),
           const SizedBox(height: 10),
@@ -340,7 +367,8 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
               GestureDetector(
                 onTap: _handleManualConfirm,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.success,
                     borderRadius: BorderRadius.circular(20),
@@ -385,7 +413,8 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
                   Container(
@@ -399,7 +428,8 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                     ),
                     child: Icon(
                       Icons.credit_card_outlined,
-                      color: isSelected ? AppColors.success : AppColors.textHint,
+                      color:
+                          isSelected ? AppColors.success : AppColors.textHint,
                       size: 20,
                     ),
                   ),
@@ -437,12 +467,14 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                             : AppColors.background,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: isSelected ? AppColors.success : AppColors.divider,
+                          color:
+                              isSelected ? AppColors.success : AppColors.divider,
                         ),
                       ),
                       child: Icon(
                         Icons.upload_rounded,
-                        color: isSelected ? AppColors.success : AppColors.textHint,
+                        color:
+                            isSelected ? AppColors.success : AppColors.textHint,
                         size: 20,
                       ),
                     ),
@@ -450,7 +482,6 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                 ],
               ),
             ),
-            // Preview gambar kalau sudah dipilih
             if (_proofImage != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
@@ -472,9 +503,7 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                         right: 8,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.black54,
                             borderRadius: BorderRadius.circular(20),
@@ -503,20 +532,14 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.background,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: AppColors.divider,
-                        style: BorderStyle.solid,
-                      ),
+                      border: Border.all(color: AppColors.divider),
                     ),
                     child: Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.add_photo_alternate_outlined,
-                            color: AppColors.textHint,
-                            size: 28,
-                          ),
+                          Icon(Icons.add_photo_alternate_outlined,
+                              color: AppColors.textHint, size: 28),
                           const SizedBox(height: 4),
                           Text(
                             'Pilih dari Galeri',

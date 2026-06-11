@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:splitsnap/core/theme/app_theme.dart';
-import 'package:splitsnap/features/split/services/room_service.dart';
+import 'package:splitsnap/core/services/room_service.dart';
 import 'room_screen.dart';
 
 class RoomShareScreen extends StatefulWidget {

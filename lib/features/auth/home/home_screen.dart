@@ -1,13 +1,16 @@
+// lib/features/home/screens/home_screen.dart
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:splitsnap/core/services/transaction_service.dart';
 import 'package:splitsnap/core/theme/app_theme.dart';
 import 'package:splitsnap/features/auth/services/auth_service.dart';
 import 'package:splitsnap/features/auth/screens/login_screen.dart';
 import 'package:splitsnap/features/scan/screens/scan_screen.dart';
-import 'package:splitsnap/features/split/screens/create_room_screen.dart';
 import 'package:splitsnap/features/split/screens/join_room_screen.dart';
 import 'package:splitsnap/features/history/screens/history_screen.dart';
+import 'package:splitsnap/features/profile/screens/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,37 +22,16 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
   User? _user;
-  int _selectedIndex = 1;
-
-  final List<Map<String, dynamic>> _recentTransactions = [
-    {
-      'name': 'Indomaret',
-      'amount': 'Rp. 35.000,00',
-      'icon': Icons.shopping_basket_outlined,
-      'color': Color(0xFFFFEBEE),
-      'iconColor': Color(0xFF6B0F2B),
-    },
-    {
-      'name': 'Warung Bu Julak',
-      'amount': 'Rp. 15.000,00',
-      'icon': Icons.storefront_outlined,
-      'color': Color(0xFFFFEBEE),
-      'iconColor': Color(0xFF6B0F2B),
-    },
-    {
-      'name': 'Kopi Kampus',
-      'amount': 'Rp. 35.000,00',
-      'icon': Icons.local_cafe_outlined,
-      'color': Color(0xFFFFEBEE),
-      'iconColor': Color(0xFF6B0F2B),
-    },
-  ];
+  int _selectedIndex = 1; // 0=Scan, 1=Home, 2=Profile
 
   @override
   void initState() {
     super.initState();
     _user = FirebaseAuth.instance.currentUser;
   }
+
+  // Dipanggil saat kembali ke HomeScreen agar recent transactions refresh
+  void _refreshState() => setState(() {});
 
   Future<void> _logout() async {
     await _authService.signOut();
@@ -71,6 +53,28 @@ class _HomeScreenState extends State<HomeScreen> {
   String get _displayName {
     final name = _user?.displayName ?? _user?.email ?? 'User';
     return name.split(' ').first;
+  }
+
+  void _onNavTap(int index) {
+    if (index == _selectedIndex) return;
+    setState(() => _selectedIndex = index);
+
+    if (index == 0) {
+      // Scan Struk
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ScanScreen()),
+      ).then((_) => _refreshState());
+    } else if (index == 2) {
+      // Profile
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+      ).then((_) {
+        setState(() => _selectedIndex = 1);
+      });
+    }
+    // index == 1 = Home (tetap di sini)
   }
 
   @override
@@ -129,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       Text(
-                        'Kamu punya 2 tagihan belum lunas hari ini',
+                        'Ayo split tagihan bersama teman!',
                         style: GoogleFonts.poppins(
                           fontSize: 11,
                           color: Colors.white60,
@@ -137,21 +141,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
+                  // ✅ Klik avatar → ProfileScreen
                   GestureDetector(
-                    onTap: _logout,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ProfileScreen()),
+                      ).then((_) => _refreshState());
+                    },
                     child: CircleAvatar(
                       radius: 18,
                       backgroundColor: Colors.white.withOpacity(0.2),
-                      child: Text(
-                        _displayName.isNotEmpty
-                            ? _displayName[0].toUpperCase()
-                            : 'U',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
+                      backgroundImage: _user?.photoURL != null
+                          ? NetworkImage(_user!.photoURL!)
+                          : null,
+                      child: _user?.photoURL == null
+                          ? Text(
+                              _displayName.isNotEmpty
+                                  ? _displayName[0].toUpperCase()
+                                  : 'U',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            )
+                          : null,
                     ),
                   ),
                 ],
@@ -191,9 +207,9 @@ class _HomeScreenState extends State<HomeScreen> {
         'label': 'Scan Struk',
         'icon': Icons.camera_alt_outlined,
         'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ScanScreen()),
-        ),
+              context,
+              MaterialPageRoute(builder: (_) => const ScanScreen()),
+            ).then((_) => _refreshState()),
       },
       {
         'label': 'Dompet',
@@ -204,17 +220,17 @@ class _HomeScreenState extends State<HomeScreen> {
         'label': 'Gabung Room',
         'icon': Icons.group_add_outlined,
         'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const JoinRoomScreen()),
-        ),
+              context,
+              MaterialPageRoute(builder: (_) => const JoinRoomScreen()),
+            ).then((_) => _refreshState()),
       },
       {
         'label': 'Riwayat',
         'icon': Icons.history_rounded,
         'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const HistoryScreen()),
-        ),
+              context,
+              MaterialPageRoute(builder: (_) => const HistoryScreen()),
+            ).then((_) => _refreshState()),
       },
     ];
 
@@ -281,6 +297,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecentTransactions() {
+    // ✅ Ambil dari TransactionService (sama persis dengan HistoryScreen)
+    final recent = TransactionService.instance.recent;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Column(
@@ -300,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                ),
+                ).then((_) => _refreshState()),
                 child: Text(
                   'Lihat Semua',
                   style: GoogleFonts.poppins(
@@ -313,82 +332,130 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _recentTransactions.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final tx = _recentTransactions[index];
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
+          if (recent.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 40,
+                    color: Colors.grey[300],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Belum ada transaksi',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.grey[400],
                     ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: tx['color'] as Color,
-                        borderRadius: BorderRadius.circular(10),
+                  ),
+                ],
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: recent.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final tx = recent[index];
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
-                      child: Icon(
-                        tx['icon'] as IconData,
-                        color: tx['iconColor'] as Color,
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: tx.color,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          tx.icon,
+                          color: tx.iconColor,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tx.name,
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF1A0A0F),
+                              ),
+                            ),
+                            Text(
+                              tx.amount > 0
+                                  ? _formatRupiah(tx.amount)
+                                  : tx.people,
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: const Color(0xFF6B4A55),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: Color(0xFFAA8899),
                         size: 20,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            tx['name'] as String,
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF1A0A0F),
-                            ),
-                          ),
-                          Text(
-                            tx['amount'] as String,
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: const Color(0xFF6B4A55),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(
-                      Icons.chevron_right,
-                      color: Color(0xFFAA8899),
-                      size: 20,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+                    ],
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
   }
 
+  String _formatRupiah(int amount) {
+    if (amount == 0) return 'Rp 0';
+    final str = amount.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < str.length; i++) {
+      if (i > 0 && (str.length - i) % 3 == 0) buf.write('.');
+      buf.write(str[i]);
+    }
+    return 'Rp ${buf.toString()}';
+  }
+
+  // ✅ Navbar: kiri=Scan, tengah=Home, kanan=Profile
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
@@ -408,9 +475,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _bottomNavItem(Icons.receipt_long_rounded, 0),
-              _bottomNavItem(Icons.home_rounded, 1),
-              _bottomNavItem(Icons.person_outline_rounded, 2),
+              _bottomNavItem(Icons.document_scanner_outlined, 0, 'Scan'),
+              _bottomNavItem(Icons.home_rounded, 1, 'Home'),
+              _bottomNavItem(Icons.person_outline_rounded, 2, 'Profil'),
             ],
           ),
         ),
@@ -418,10 +485,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _bottomNavItem(IconData icon, int index) {
+  Widget _bottomNavItem(IconData icon, int index, String label) {
     final isSelected = _selectedIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
+      onTap: () => _onNavTap(index),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
@@ -432,7 +499,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Icon(
           icon,
-          color: isSelected ? const Color(0xFF6B0F2B) : const Color(0xFFAA8899),
+          color:
+              isSelected ? const Color(0xFF6B0F2B) : const Color(0xFFAA8899),
           size: 26,
         ),
       ),
