@@ -11,6 +11,7 @@ import 'package:splitsnap/features/scan/screens/scan_screen.dart';
 import 'package:splitsnap/features/split/screens/join_room_screen.dart';
 import 'package:splitsnap/features/history/screens/history_screen.dart';
 import 'package:splitsnap/features/profile/screens/profile_screen.dart';
+import 'package:splitsnap/features/wallet/screens/wallet_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,7 +23,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
   User? _user;
-  int _selectedIndex = 1; // 0=Scan, 1=Home, 2=Profile
+  // 0=Notifikasi, 1=Home, 2=Profile
+  int _selectedIndex = 1;
 
   @override
   void initState() {
@@ -30,17 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _user = FirebaseAuth.instance.currentUser;
   }
 
-  // Dipanggil saat kembali ke HomeScreen agar recent transactions refresh
   void _refreshState() => setState(() {});
-
-  Future<void> _logout() async {
-    await _authService.signOut();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
-  }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -57,24 +49,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onNavTap(int index) {
     if (index == _selectedIndex) return;
-    setState(() => _selectedIndex = index);
 
     if (index == 0) {
-      // Scan Struk
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ScanScreen()),
-      ).then((_) => _refreshState());
+      // Notifikasi — placeholder, belum ada screen
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Notifikasi akan segera hadir!',
+            style: GoogleFonts.poppins(fontSize: 12),
+          ),
+          backgroundColor: AppColors.primary,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
     } else if (index == 2) {
-      // Profile
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const ProfileScreen()),
       ).then((_) {
         setState(() => _selectedIndex = 1);
       });
+      return;
     }
-    // index == 1 = Home (tetap di sini)
+
+    setState(() => _selectedIndex = index);
   }
 
   @override
@@ -141,7 +140,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  // ✅ Klik avatar → ProfileScreen
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -214,7 +212,10 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'label': 'Dompet',
         'icon': Icons.account_balance_wallet_outlined,
-        'onTap': () {},
+        'onTap': () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WalletScreen()),
+            ).then((_) => _refreshState()),
       },
       {
         'label': 'Gabung Room',
@@ -297,7 +298,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecentTransactions() {
-    // ✅ Ambil dari TransactionService (sama persis dengan HistoryScreen)
     final recent = TransactionService.instance.recent;
 
     return Padding(
@@ -349,18 +349,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Column(
                 children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 40,
-                    color: Colors.grey[300],
-                  ),
+                  Icon(Icons.receipt_long_outlined,
+                      size: 40, color: Colors.grey[300]),
                   const SizedBox(height: 8),
                   Text(
                     'Belum ada transaksi',
                     style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: Colors.grey[400],
-                    ),
+                        fontSize: 13, color: Colors.grey[400]),
                   ),
                 ],
               ),
@@ -373,11 +368,16 @@ class _HomeScreenState extends State<HomeScreen> {
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final tx = recent[index];
-                return Container(
+                return GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const HistoryScreen(),
+                    ),
+                  ).then((_) => _refreshState()),
+                  child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
+                      horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -398,11 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: tx.color,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(
-                          tx.icon,
-                          color: tx.iconColor,
-                          size: 20,
-                        ),
+                        child: Icon(tx.icon, color: tx.iconColor, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -429,12 +425,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: Color(0xFFAA8899),
-                        size: 20,
-                      ),
+                      // ✅ Chevron dihapus
                     ],
+                  ),
                   ),
                 );
               },
@@ -455,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'Rp ${buf.toString()}';
   }
 
-  // ✅ Navbar: kiri=Scan, tengah=Home, kanan=Profile
+  // ✅ Navbar 3 tab: Notifikasi | Home | Profil
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
@@ -475,7 +468,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _bottomNavItem(Icons.document_scanner_outlined, 0, 'Scan'),
+              _bottomNavItem(Icons.notifications_outlined, 0, 'Notifikasi'),
               _bottomNavItem(Icons.home_rounded, 1, 'Home'),
               _bottomNavItem(Icons.person_outline_rounded, 2, 'Profil'),
             ],
@@ -499,8 +492,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Icon(
           icon,
-          color:
-              isSelected ? const Color(0xFF6B0F2B) : const Color(0xFFAA8899),
+          color: isSelected
+              ? const Color(0xFF6B0F2B)
+              : const Color(0xFFAA8899),
           size: 26,
         ),
       ),

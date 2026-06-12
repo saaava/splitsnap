@@ -1,9 +1,21 @@
+// lib/features/profile/screens/profile_screen.dart
+//
+// Stats terhubung ke TransactionService:
+//   - Jumlah Split Bill  → TransactionService.instance.totalTransaksi
+//   - Total Nominal      → TransactionService.instance.totalNominal
+//   - Saldo Wallet       → TransactionService.instance.walletBalance
+//
+// Aktivitas Terakhir gabungan: wallet transactions + split bill transactions
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:splitsnap/core/services/transaction_service.dart';
 import 'package:splitsnap/core/theme/app_theme.dart';
-import 'package:splitsnap/features/auth/services/auth_service.dart';
 import 'package:splitsnap/features/auth/screens/login_screen.dart';
+import 'package:splitsnap/features/auth/services/auth_service.dart';
+import 'package:splitsnap/features/history/screens/history_screen.dart';
+import 'package:splitsnap/features/wallet/screens/wallet_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,339 +25,623 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final AuthService _authService = AuthService();
-  User? _user;
-
-  // Stats — nanti bisa disambungkan ke Firestore activity
-  final int _totalTransaksi = 0;
-  final int _totalSplitBill = 0;
-  final int _totalNominal = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _user = FirebaseAuth.instance.currentUser;
-  }
+  final _authService = AuthService();
+  final _service = TransactionService.instance;
+  User? get _user => FirebaseAuth.instance.currentUser;
 
   String get _displayName {
-    if (_user?.displayName != null && _user!.displayName!.isNotEmpty) {
-      return _user!.displayName!;
-    }
-    // Fallback: ambil bagian sebelum @ dari email
-    final email = _user?.email ?? '';
-    if (email.contains('@')) {
-      final namePart = email.split('@').first;
-      // Capitalize
-      return namePart.isNotEmpty
-          ? namePart[0].toUpperCase() + namePart.substring(1)
-          : 'User';
-    }
-    return 'User';
+    final name = _user?.displayName ?? _user?.email ?? 'User';
+    return name.split(' ').first;
   }
 
-  String get _email => _user?.email ?? '-';
-
-  String get _phone => _user?.phoneNumber ?? '-';
-
-  String get _initials {
-    final name = _displayName;
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : 'U';
-  }
-
-  String _formatNominal(int amount) {
+  String _formatRupiah(int amount) {
     if (amount == 0) return 'Rp 0';
-    if (amount >= 1000000) {
-      final jt = amount / 1000000;
-      return 'Rp ${jt % 1 == 0 ? jt.toInt() : jt.toStringAsFixed(1)}jt';
+    final str = amount.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < str.length; i++) {
+      if (i > 0 && (str.length - i) % 3 == 0) buf.write('.');
+      buf.write(str[i]);
     }
-    if (amount >= 1000) {
-      final rb = amount / 1000;
-      return 'Rp ${rb % 1 == 0 ? rb.toInt() : rb.toStringAsFixed(1)}rb';
-    }
-    return 'Rp $amount';
+    return 'Rp ${buf.toString()}';
   }
 
-  Future<void> _signOut() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Keluar dari SplitSnap?',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-        ),
-        content: Text(
-          'Kamu perlu login ulang untuk menggunakan aplikasi.',
-          style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Batal',
-              style: GoogleFonts.poppins(color: AppColors.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              elevation: 0,
-            ),
-            child: Text(
-              'Keluar',
-              style: GoogleFonts.poppins(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+  Future<void> _logout() async {
+    await _authService.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
-
-    if (confirmed == true) {
-      await _authService.signOut();
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Ambil 3 wallet transactions terbaru untuk "Aktivitas"
+    final walletTx = _service.walletTransactions.take(3).toList();
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Profil',
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+      backgroundColor: const Color(0xFFF8F4F5),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildStatsRow(),
+              const SizedBox(height: 20),
+              _buildMenuSection(walletTx),
+              const SizedBox(height: 24),
+              _buildLogoutButton(),
+              const SizedBox(height: 32),
+            ],
           ),
         ),
       ),
-      body: Column(
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      decoration: const BoxDecoration(
+        color: Color(0xFF6B0F2B),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      child: Column(
         children: [
-          // Profile card
-          _buildProfileCard(),
-          const Spacer(),
-          // Sign out button
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              0,
-              20,
-              MediaQuery.of(context).padding.bottom + 20,
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Profil',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          CircleAvatar(
+            radius: 40,
+            backgroundColor: Colors.white.withOpacity(0.2),
+            backgroundImage: _user?.photoURL != null
+                ? NetworkImage(_user!.photoURL!)
+                : null,
+            child: _user?.photoURL == null
+                ? Text(
+                    _displayName.isNotEmpty
+                        ? _displayName[0].toUpperCase()
+                        : 'U',
+                    style: GoogleFonts.poppins(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _user?.displayName ?? _displayName,
+            style: GoogleFonts.poppins(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
             ),
-            child: _buildSignOutButton(),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _user?.email ?? '',
+            style: GoogleFonts.poppins(fontSize: 12, color: Colors.white60),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProfileCard() {
+  Widget _buildStatsRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      child: Row(
+        children: [
+          _statCard(
+            label: 'Split Bill',
+            value: '${_service.totalTransaksi}x',
+            icon: Icons.receipt_long_outlined,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HistoryScreen()),
+            ).then((_) => setState(() {})),
+          ),
+          const SizedBox(width: 10),
+          _statCard(
+            label: 'Total Bayar',
+            value: _formatRupiah(_service.totalNominal),
+            icon: Icons.payments_outlined,
+            compact: true,
+          ),
+          const SizedBox(width: 10),
+          _statCard(
+            label: 'Saldo Wallet',
+            value: _formatRupiah(_service.walletBalance),
+            icon: Icons.account_balance_wallet_outlined,
+            compact: true,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WalletScreen()),
+            ).then((_) => setState(() {})),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statCard({
+    required String label,
+    required String value,
+    required IconData icon,
+    bool compact = false,
+    VoidCallback? onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: AppColors.primary, size: 22),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: compact ? 11 : 14,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1A0A0F),
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuSection(List<WalletTransaction> walletTx) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          // ── Aktivitas Wallet Terbaru ──────────────────────────────
+          if (walletTx.isNotEmpty) ...[
+            _sectionHeader(
+              title: 'Aktivitas Wallet',
+              actionLabel: 'Lihat Semua',
+              onAction: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WalletScreen()),
+              ).then((_) => setState(() {})),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: walletTx.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final tx = entry.value;
+                  final isLast = i == walletTx.length - 1;
+                  final isPositive = tx.amount > 0;
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: tx.iconBg,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                tx.icon,
+                                color: tx.iconColor,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tx.title,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF1A0A0F),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${tx.date} · ${tx.time}',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  tx.status,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: tx.status == 'Lunas'
+                                        ? AppColors.success
+                                        : const Color(0xFFE65100),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isPositive
+                                      ? '+${_formatRupiah(tx.amount)}'
+                                      : _formatRupiah(tx.amount),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: isPositive
+                                        ? AppColors.success
+                                        : AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!isLast)
+                        Divider(
+                          height: 1,
+                          color: AppColors.divider,
+                          indent: 14,
+                          endIndent: 14,
+                        ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // ── Riwayat Split Bill ──────────────────────────────────
+          _sectionHeader(
+            title: 'Riwayat Split Bill',
+            actionLabel: 'Lihat Semua',
+            onAction: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HistoryScreen()),
+            ).then((_) => setState(() {})),
+          ),
+          const SizedBox(height: 10),
+          _buildSplitBillPreview(),
+
+          const SizedBox(height: 20),
+
+          // ── Menu profil ───────────────────────────────────────────
+          // _menuTile(
+          //   icon: Icons.person_outline_rounded,
+          //   label: 'Edit Profil',
+          //   onTap: () {},
+          // ),
+          // _menuTile(
+          //   icon: Icons.notifications_outlined,
+          //   label: 'Notifikasi',
+          //   onTap: () {},
+          // ),
+          // _menuTile(
+          //   icon: Icons.security_outlined,
+          //   label: 'Keamanan Akun',
+          //   onTap: () {},
+          // ),
+          // _menuTile(
+          //   icon: Icons.help_outline_rounded,
+          //   label: 'Bantuan & FAQ',
+          //   onTap: () {},
+          // ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader({
+    required String title,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF1A0A0F),
+          ),
+        ),
+        if (actionLabel != null)
+          GestureDetector(
+            onTap: onAction,
+            child: Text(
+              actionLabel,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSplitBillPreview() {
+    final items = _service.recent;
+    if (items.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 36,
+              color: Colors.grey[300],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Belum ada split bill',
+              style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[400]),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
-      margin: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
-        children: [
-          // Header section (foto + nama + email + no hp)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-            decoration: BoxDecoration(
-              color: const Color(0xFFD9BFC8), // warna muted rose seperti di gambar
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            child: Column(
-              children: [
-                // Avatar
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.6),
-                  ),
-                  alignment: Alignment.center,
-                  child: _user?.photoURL != null
-                      ? ClipOval(
-                          child: Image.network(
-                            _user!.photoURL!,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _buildInitialsAvatar(),
+        children: items.asMap().entries.map((entry) {
+          final i = entry.key;
+          final tx = entry.value;
+          final isPaid = tx.status == 'Lunas';
+          final isLast = i == items.length - 1;
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: tx.color,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(tx.icon, color: tx.iconColor, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tx.name,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1A0A0F),
+                            ),
                           ),
-                        )
-                      : _buildInitialsAvatar(),
+                          Text(
+                            '${tx.people} · ${tx.date}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          _formatRupiah(tx.amount),
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1A0A0F),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isPaid
+                                ? AppColors.success.withOpacity(0.1)
+                                : const Color(0xFFFFF3E0),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            tx.status,
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: isPaid
+                                  ? AppColors.success
+                                  : const Color(0xFFE65100),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  _displayName,
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _email,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: AppColors.primaryDark,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _phone == '-' ? '' : _phone,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: AppColors.primaryDark,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Stats row
-          Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFEFE8EC),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                bottomRight: Radius.circular(20),
               ),
-            ),
-            child: Row(
-              children: [
-                _buildStatItem(
-                  value: '$_totalTransaksi',
-                  label: 'Transaksi',
+              if (!isLast)
+                Divider(
+                  height: 1,
+                  color: AppColors.divider,
+                  indent: 14,
+                  endIndent: 14,
                 ),
-                _buildStatDivider(),
-                _buildStatItem(
-                  value: '$_totalSplitBill',
-                  label: 'Split Bill',
-                ),
-                _buildStatDivider(),
-                _buildStatItem(
-                  value: _formatNominal(_totalNominal),
-                  label: 'Total',
-                  isHighlighted: true,
-                ),
-              ],
-            ),
-          ),
-        ],
+            ],
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildInitialsAvatar() {
-    return Text(
-      _initials,
-      style: GoogleFonts.poppins(
-        fontSize: 28,
-        fontWeight: FontWeight.w700,
-        color: AppColors.primary,
-      ),
-    );
-  }
-
-  Widget _buildStatItem({
-    required String value,
+  Widget _menuTile({
+    required IconData icon,
     required String label,
-    bool isHighlighted = false,
+    required VoidCallback onTap,
   }) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
           children: [
-            Text(
-              value,
-              style: GoogleFonts.poppins(
-                fontSize: isHighlighted ? 18 : 20,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+            Icon(icon, color: AppColors.primary, size: 22),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF1A0A0F),
+                ),
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
+            const Icon(Icons.chevron_right, color: Color(0xFFAA8899), size: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatDivider() {
-    return Container(
-      width: 1,
-      height: 40,
-      color: AppColors.primary.withOpacity(0.2),
-    );
-  }
-
-  Widget _buildSignOutButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton.icon(
-        onPressed: _signOut,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          shape: RoundedRectangleBorder(
+  Widget _buildLogoutButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: _logout,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.error.withOpacity(0.08),
             borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.error.withOpacity(0.2)),
           ),
-          elevation: 0,
-        ),
-        icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 20),
-        label: Text(
-          'Sign out',
-          style: GoogleFonts.poppins(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                'Keluar',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.error,
+                ),
+              ),
+            ],
           ),
         ),
       ),
