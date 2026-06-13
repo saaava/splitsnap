@@ -21,7 +21,14 @@ class NotificationService {
   static const _channelName = 'Pengingat Pembayaran';
   static const _channelDesc = 'Notifikasi pengingat split bill';
 
+  bool _initialized = false;
+
+  /// Panggil SEKALI di main(), TIDAK butuh user login.
+  /// Setup permission, channel, local notification, & listener foreground.
   Future<void> init() async {
+    if (_initialized) return;
+    _initialized = true;
+
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     final settings = await _fcm.requestPermission(
@@ -31,7 +38,6 @@ class NotificationService {
     );
     debugPrint('[FCM] Permission: ${settings.authorizationStatus}');
 
-    // Setup Android notification channel
     if (Platform.isAndroid) {
       const androidChannel = AndroidNotificationChannel(
         _channelId,
@@ -40,7 +46,6 @@ class NotificationService {
         importance: Importance.high,
         playSound: true,
       );
-      // ✅ Fix: tambah < yang hilang di generic
       final androidImpl = _localNotif
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       if (androidImpl != null) {
@@ -63,29 +68,52 @@ class NotificationService {
 
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-    await _saveTokenToFirestore();
-    _fcm.onTokenRefresh.listen((_) => _saveTokenToFirestore());
-
     await _fcm.setForegroundNotificationPresentationOptions(
       alert: true,
       badge: true,
       sound: true,
     );
+
+    // Kalau token refresh sementara user sudah login, langsung re-save.
+    _fcm.onTokenRefresh.listen((newToken) async {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+      await _writeToken(uid, newToken);
+    });
   }
 
-  Future<void> _saveTokenToFirestore() async {
+  /// Panggil SETIAP KALI user berhasil login (atau saat AuthGate mendeteksi
+  /// user != null). Idempotent — aman dipanggil berkali-kali.
+  Future<void> saveToken() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) {
+      debugPrint('[FCM] saveToken dibatalkan: belum login');
+      return;
+    }
 
     final token = await _fcm.getToken();
-    if (token == null) return;
+    if (token == null) {
+      debugPrint('[FCM] saveToken dibatalkan: token null');
+      return;
+    }
 
+    await _writeToken(uid, token);
+  }
+
+  Future<void> _writeToken(String uid, String token) async {
     await FirebaseFirestore.instance.collection('fcm_tokens').doc(uid).set({
       'token': token,
       'updatedAt': FieldValue.serverTimestamp(),
     });
-
     debugPrint('[FCM] Token saved for uid=$uid');
+  }
+
+  /// Hapus token saat logout (opsional, biar gak kekirim notif ke device
+  /// yang sudah logout).
+  Future<void> clearToken() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    await FirebaseFirestore.instance.collection('fcm_tokens').doc(uid).delete();
   }
 
   void _handleForegroundMessage(RemoteMessage message) {

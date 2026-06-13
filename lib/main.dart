@@ -12,7 +12,10 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ✅ Setup permission, channel, listener — TIDAK butuh login.
   await NotificationService.instance.init();
+
   runApp(const SplitSnapApp());
 }
 
@@ -33,8 +36,15 @@ class SplitSnapApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  String? _lastSavedUid;
 
   @override
   Widget build(BuildContext context) {
@@ -64,10 +74,24 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        if (snapshot.data == null) {
+        final user = snapshot.data;
+
+        if (user == null) {
+          _lastSavedUid = null;
           return const LoginScreen();
         }
-        
+
+        // ✅ Simpan / refresh token FCM setiap kali ada user yang login,
+        // tapi cukup sekali per sesi (hindari spam tiap rebuild widget).
+        if (_lastSavedUid != user.uid) {
+          _lastSavedUid = user.uid;
+          // Jalankan setelah frame ini selesai agar tidak conflict
+          // dengan build().
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            NotificationService.instance.saveToken();
+          });
+        }
+
         return const HomeScreen();
       },
     );

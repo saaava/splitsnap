@@ -12,6 +12,7 @@ import 'package:splitsnap/features/profile/screens/profile_screen.dart';
 import 'package:splitsnap/features/scan/screens/scan_screen.dart';
 import 'package:splitsnap/features/split/screens/join_room_screen.dart';
 import 'package:splitsnap/features/wallet/screens/wallet_screen.dart';
+import 'package:splitsnap/core/services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _user = FirebaseAuth.instance.currentUser;
+    NotificationService.instance.saveToken();
   }
 
   void _refreshState() => setState(() {});

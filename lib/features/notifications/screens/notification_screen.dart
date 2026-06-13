@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:splitsnap/core/services/room_service.dart';
 import 'package:splitsnap/core/theme/app_theme.dart';
+import 'package:splitsnap/features/split/screens/bill_confirmation_screen.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -79,6 +81,66 @@ class _NotificationScreenState extends State<NotificationScreen> {
     await batch.commit();
   }
 
+  /// "Bayar Sekarang" — tap dari notif payment_reminder.
+  /// Ambil data room (storeName, items, date) dari Firestore lalu buka
+  /// BillConfirmationScreen langsung untuk konfirmasi pembayaran.
+  Future<void> _onBayarSekarang(Map<String, dynamic> data, String docId) async {
+    final roomCode = data['roomCode'] as String? ?? '';
+    if (roomCode.isEmpty) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+    );
+
+    try {
+      final roomData = await RoomService.getRoom(roomCode);
+      if (!mounted) return;
+      Navigator.pop(context); // tutup loading
+
+      if (roomData == null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Room tidak ditemukan / sudah selesai',
+              style: GoogleFonts.poppins(fontSize: 12)),
+          backgroundColor: AppColors.error,
+        ));
+        return;
+      }
+
+      final storeName = roomData['storeName'] as String? ?? (data['storeName'] as String? ?? 'Belanja');
+      final date = roomData['date'] as String? ?? '';
+      final amount = data['amount'] as int? ??
+          (data['amount'] as num?)?.toInt() ?? 0;
+
+      await _markAsRead(docId);
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BillConfirmationScreen(
+            storeName: storeName,
+            createdBy: '',
+            date: date,
+            total: amount,
+            roomCode: roomCode,
+            participantUid: _uid,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Gagal membuka room: $e', style: GoogleFonts.poppins(fontSize: 12)),
+        backgroundColor: AppColors.error,
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,7 +215,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
             );
           }
 
-          // Kelompokkan berdasarkan hari
           final today = <QueryDocumentSnapshot>[];
           final yesterday = <QueryDocumentSnapshot>[];
           final older = <QueryDocumentSnapshot>[];
@@ -238,55 +299,107 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
           ],
         ),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: _colorFor(type),
-              borderRadius: BorderRadius.circular(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: _colorFor(type),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(_iconFor(type), color: _iconColorFor(type), size: 22),
             ),
-            child: Icon(_iconFor(type), color: _iconColorFor(type), size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  if (!isRead)
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ]),
+                const SizedBox(height: 3),
+                Text(
+                  body,
+                  style: GoogleFonts.poppins(
+                      fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _timeAgo(ts),
+                  style: GoogleFonts.poppins(
+                      fontSize: 11, color: Colors.grey[400]),
+                ),
+              ]),
+            ),
+          ]),
+
+          // ✅ Tombol aksi khusus payment_reminder
+          if (type == 'payment_reminder') ...[
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _onBayarSekarang(data, doc.id),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Bayar Sekarang',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-                if (!isRead)
-                  Container(
-                    width: 8,
-                    height: 8,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _markAsRead(doc.id),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.divider, width: 1.5),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Nanti',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
-              ]),
-              const SizedBox(height: 3),
-              Text(
-                body,
-                style: GoogleFonts.poppins(
-                    fontSize: 12, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _timeAgo(ts),
-                style: GoogleFonts.poppins(
-                    fontSize: 11, color: Colors.grey[400]),
+                ),
               ),
             ]),
-          ),
+          ],
         ]),
       ),
     );
