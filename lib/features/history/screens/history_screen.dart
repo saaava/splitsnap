@@ -33,23 +33,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   /// Parse 'DD Mon YYYY' → DateTime (dari TransactionService._formatDate)
-  DateTime? _parseDate(String dateStr) {
+  /// Kalau gagal parse (format tanggal dari OCR struk gak dikenal),
+  /// fallback ke hari ini supaya transaksi tetap muncul di Riwayat.
+  DateTime _parseDate(String dateStr) {
     const months = {
       'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4,
       'Mei': 5, 'Jun': 6, 'Jul': 7, 'Agu': 8,
       'Sep': 9, 'Okt': 10, 'Nov': 11, 'Des': 12,
     };
     final parts = dateStr.trim().split(' ');
-    if (parts.length < 3) return null;
-    final day = int.tryParse(parts[0]);
-    final month = months[parts[1]];
-    final year = int.tryParse(parts[2]);
-    if (day == null || month == null || year == null) return null;
-    return DateTime(year, month, day);
+    if (parts.length >= 3) {
+      final day = int.tryParse(parts[0]);
+      final month = months[parts[1]];
+      final year = int.tryParse(parts[2]);
+      if (day != null && month != null && year != null) {
+        return DateTime(year, month, day);
+      }
+    }
+    return DateTime.now();
   }
 
-  bool _inRange(DateTime? dt) {
-    if (dt == null) return false;
+  bool _inRange(DateTime dt) {
     final start = DateTime(_rangeStart.year, _rangeStart.month, _rangeStart.day);
     final end = DateTime(_rangeEnd.year, _rangeEnd.month, _rangeEnd.day, 23, 59);
     return !dt.isBefore(start) && !dt.isAfter(end);
@@ -78,8 +82,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final total = filtered
           .where((tx) {
             final d = _parseDate(tx.date);
-            return d != null &&
-                d.year == day.year &&
+            return d.year == day.year &&
                 d.month == day.month &&
                 d.day == day.day;
           })
@@ -178,13 +181,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: Row(
               children: [
-                const SizedBox(width: 50), 
+                const SizedBox(width: 1), 
                 _timeChip(
                   label: '7 Hari Terakhir',
                   selected: !_isCustomRange,
                   onTap: _setLast7Days,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _timeChip(
                   label: 'Pilih Tanggal',
                   selected: _isCustomRange,
@@ -274,90 +277,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: filtered.length,
                       separatorBuilder: (_, __) =>
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final tx = filtered[index];
-                        final isPribadi =
-                            tx.type == TxType.pribadi;
-                        final tagLabel =
-                            isPribadi ? 'Pribadi' : tx.status;
-                        final tagColor = isPribadi
-                            ? AppColors.success
-                            : (tx.status == 'Lunas'
-                                ? AppColors.success
-                                : const Color(0xFFE65100));
-
-                        return Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    tx.name,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    tagLabel,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                      color: tagColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                tx.subtitle,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    tx.detail,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                  Text(
-                                    _formatRupiah(tx.amount),
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
+                        return _buildTxRow(tx);
                       },
                     ),
 
@@ -365,6 +288,93 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Row item, gaya sama seperti "Transaksi Terbaru" di Home ───────
+  Widget _buildTxRow(TransactionItem tx) {
+    final subtitleText = tx.type == TxType.pribadi
+        ? (tx.subtitle.isNotEmpty ? tx.subtitle : tx.date)
+        : (tx.subtitle.isNotEmpty ? tx.subtitle : '${tx.date} | ${tx.status}');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: tx.color,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(tx.icon, color: tx.iconColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tx.name,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1A0A0F),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitleText,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    color: const Color(0xFF6B4A55),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                _formatRupiah(tx.amount),
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1A0A0F),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                tx.type == TxType.pribadi ? 'Pribadi' : tx.status,
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: tx.type == TxType.pribadi
+                      ? AppColors.success
+                      : (tx.status == 'Lunas'
+                          ? AppColors.success
+                          : const Color(0xFFE65100)),
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -1,12 +1,10 @@
-// lib/features/split/screens/bill_confirmation_screen.dart
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:splitsnap/core/services/room_service.dart';
 import 'package:splitsnap/core/services/transaction_service.dart';
 import 'package:splitsnap/core/theme/app_theme.dart';
-import 'package:splitsnap/features/history/screens/history_screen.dart';
 
 class BillConfirmationScreen extends StatefulWidget {
   final String storeName;
@@ -15,6 +13,10 @@ class BillConfirmationScreen extends StatefulWidget {
   final int total;
   final int participantCount;
 
+
+  final String roomCode;
+  final String participantUid;
+
   const BillConfirmationScreen({
     super.key,
     required this.storeName,
@@ -22,14 +24,17 @@ class BillConfirmationScreen extends StatefulWidget {
     required this.date,
     required this.total,
     this.participantCount = 1,
+    this.roomCode = '',
+    this.participantUid = '',
   });
 
   @override
-  State<BillConfirmationScreen> createState() => _BillConfirmationScreenState();
+  State<BillConfirmationScreen> createState() =>
+      _BillConfirmationScreenState();
 }
 
 class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
-  int _selectedMethod = -1; // 0 = manual, 1 = upload
+  int _selectedMethod = -1;
   File? _proofImage;
   bool _isUploading = false;
 
@@ -60,7 +65,8 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(children: [
-          const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+          const Icon(Icons.check_circle_outline,
+              color: Colors.white, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -72,7 +78,8 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
         backgroundColor: AppColors.primary,
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       ),
     );
@@ -88,7 +95,8 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
           ),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         ),
       );
@@ -104,7 +112,8 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
           ),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         ),
       );
@@ -112,11 +121,22 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
     }
 
     setState(() => _isUploading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
+
+    // ✅ markPaid di Firestore agar RoomScreen realtime langsung update
+    if (widget.roomCode.isNotEmpty && widget.participantUid.isNotEmpty) {
+      try {
+        await RoomService.markPaid(
+          roomCode: widget.roomCode,
+          uid: widget.participantUid,
+        );
+      } catch (_) {}
+    }
+
+    await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
     setState(() => _isUploading = false);
 
-    // ✅ Simpan transaksi ke TransactionService dengan status Lunas
+    // Simpan ke TransactionService
     TransactionService.instance.addTransaction(
       TransactionItem(
         name: widget.storeName,
@@ -135,7 +155,8 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(children: [
-          const Icon(Icons.verified_outlined, color: Colors.white, size: 18),
+          const Icon(Icons.verified_outlined,
+              color: Colors.white, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -147,19 +168,17 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
         backgroundColor: AppColors.success,
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       ),
     );
 
-    // ✅ Arahkan ke HistoryScreen (replace semua route sebelumnya kecuali home)
+    // ✅ Pop kembali ke RoomScreen (bukan pushAndRemoveUntil)
+    // RoomScreen akan auto-refresh status via StreamBuilder
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HistoryScreen()),
-      (route) => route.isFirst, // tetap ada HomeScreen di stack paling bawah
-    );
+    Navigator.of(context).pop(true); // return true = konfirmasi berhasil
   }
 
   @override
@@ -170,7 +189,8 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
         backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -192,17 +212,14 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                   Text(
                     'Total tagihan saya:',
                     style: GoogleFonts.poppins(
-                      fontSize: 10,
-                      color: Colors.white70,
-                    ),
+                        fontSize: 10, color: Colors.white70),
                   ),
                   Text(
                     _formatRupiah(widget.total),
                     style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white),
                   ),
                 ],
               ),
@@ -248,10 +265,9 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -260,15 +276,16 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
           Text(
             'Detail Tagihan',
             style: GoogleFonts.poppins(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary),
           ),
           const SizedBox(height: 16),
           _detailRow('Room / Toko', widget.storeName),
-          const SizedBox(height: 10),
-          _detailRow('Dibuat oleh', widget.createdBy),
+          if (widget.createdBy.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _detailRow('Dibuat oleh', widget.createdBy),
+          ],
           const SizedBox(height: 10),
           _detailRow('Tanggal', widget.date),
           Divider(color: AppColors.divider, height: 24),
@@ -285,17 +302,14 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
         Text(
           label,
           style: GoogleFonts.poppins(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-          ),
+              fontSize: 13, color: AppColors.textSecondary),
         ),
         Text(
           value,
           style: GoogleFonts.poppins(
-            fontSize: 13,
-            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-            color: isBold ? AppColors.primary : AppColors.textPrimary,
-          ),
+              fontSize: 13,
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+              color: isBold ? AppColors.primary : AppColors.textPrimary),
         ),
       ],
     );
@@ -307,7 +321,8 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
       onTap: () => setState(() => _selectedMethod = 0),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFFEDF7ED) : Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -317,10 +332,9 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2))
           ],
         ),
         child: Row(
@@ -335,8 +349,11 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
-                isSelected ? Icons.check_circle : Icons.check_circle_outline,
-                color: isSelected ? AppColors.success : AppColors.textHint,
+                isSelected
+                    ? Icons.check_circle
+                    : Icons.check_circle_outline,
+                color:
+                    isSelected ? AppColors.success : AppColors.textHint,
                 size: 22,
               ),
             ),
@@ -345,21 +362,15 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Konfirmasi Manual',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    'Konfirmasi via WhatsApp ke pembuat tagihan',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  Text('Konfirmasi Manual',
+                      style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary)),
+                  Text('Konfirmasi via WhatsApp ke pembuat tagihan',
+                      style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: AppColors.textSecondary)),
                 ],
               ),
             ),
@@ -367,20 +378,17 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
               GestureDetector(
                 onTap: _handleManualConfirm,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.success,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(
-                    'Kirim',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: Text('Kirim',
+                      style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white)),
                 ),
               ),
           ],
@@ -404,17 +412,16 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2))
           ],
         ),
         child: Column(
           children: [
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 14),
               child: Row(
                 children: [
                   Container(
@@ -426,33 +433,26 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                           : AppColors.background,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(
-                      Icons.credit_card_outlined,
-                      color:
-                          isSelected ? AppColors.success : AppColors.textHint,
-                      size: 20,
-                    ),
+                    child: Icon(Icons.credit_card_outlined,
+                        color: isSelected
+                            ? AppColors.success
+                            : AppColors.textHint,
+                        size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Upload Bukti Transfer',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          'Ambil foto bukti transfer dari galeri',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
+                        Text('Upload Bukti Transfer',
+                            style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary)),
+                        Text('Ambil foto bukti transfer dari galeri',
+                            style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: AppColors.textSecondary)),
                       ],
                     ),
                   ),
@@ -467,16 +467,16 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                             : AppColors.background,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color:
-                              isSelected ? AppColors.success : AppColors.divider,
+                          color: isSelected
+                              ? AppColors.success
+                              : AppColors.divider,
                         ),
                       ),
-                      child: Icon(
-                        Icons.upload_rounded,
-                        color:
-                            isSelected ? AppColors.success : AppColors.textHint,
-                        size: 20,
-                      ),
+                      child: Icon(Icons.upload_rounded,
+                          color: isSelected
+                              ? AppColors.success
+                              : AppColors.textHint,
+                          size: 20),
                     ),
                   ),
                 ],
@@ -508,14 +508,11 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                             color: Colors.black54,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(
-                            'Ganti Foto',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          child: Text('Ganti Foto',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500)),
                         ),
                       ),
                     ],
@@ -541,13 +538,10 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                           Icon(Icons.add_photo_alternate_outlined,
                               color: AppColors.textHint, size: 28),
                           const SizedBox(height: 4),
-                          Text(
-                            'Pilih dari Galeri',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: AppColors.textHint,
-                            ),
-                          ),
+                          Text('Pilih dari Galeri',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: AppColors.textHint)),
                         ],
                       ),
                     ),
@@ -569,8 +563,7 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+              borderRadius: BorderRadius.circular(14)),
           elevation: 0,
         ),
         child: _isUploading
@@ -578,18 +571,12 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2.5,
-                ),
-              )
-            : Text(
-                'Konfirmasi Tagihan',
+                    color: Colors.white, strokeWidth: 2.5))
+            : Text('Konfirmasi Tagihan',
                 style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white)),
       ),
     );
   }

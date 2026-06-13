@@ -213,6 +213,53 @@ class TransactionService {
   int get totalNominal =>
       _transactions.fold(0, (sum, t) => sum + t.amount);
 
+  // ── Date normalization ──────────────────────────────────────────
+  /// Normalisasi berbagai format tanggal hasil OCR/struk (mis: '12/06/2026',
+  /// '2026-06-12', '12.06.2026') menjadi format konsisten 'DD Mon YYYY'
+  /// yang dipakai HistoryScreen untuk parsing tanggal & grafik.
+  /// Jika tidak bisa diparse atau kosong, fallback ke tanggal hari ini.
+  String normalizeDate(String raw) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return _formatDate(DateTime.now());
+
+    // Sudah format 'DD Mon YYYY'
+    if (RegExp(r'^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$').hasMatch(trimmed)) {
+      return trimmed;
+    }
+
+    // 'DD/MM/YYYY', 'DD-MM-YYYY', 'DD.MM.YYYY' (juga YY 2 digit)
+    final dmy = RegExp(r'^(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})$')
+        .firstMatch(trimmed);
+    if (dmy != null) {
+      final d = int.parse(dmy.group(1)!);
+      final mo = int.parse(dmy.group(2)!);
+      var y = int.parse(dmy.group(3)!);
+      if (y < 100) y += 2000;
+      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+        return '$d ${months[mo - 1]} $y';
+      }
+    }
+
+    // 'YYYY-MM-DD' atau 'YYYY/MM/DD'
+    final ymd = RegExp(r'^(\d{4})[./\-](\d{1,2})[./\-](\d{1,2})$')
+        .firstMatch(trimmed);
+    if (ymd != null) {
+      final y = int.parse(ymd.group(1)!);
+      final mo = int.parse(ymd.group(2)!);
+      final d = int.parse(ymd.group(3)!);
+      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+        return '$d ${months[mo - 1]} $y';
+      }
+    }
+
+    // Format tak dikenal, fallback ke hari ini
+    return _formatDate(DateTime.now());
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────
   String _formatDate(DateTime dt) {
     const months = [

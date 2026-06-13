@@ -455,34 +455,28 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  // ✅ FIX: simpan ke TransactionService sebelum navigate
   void _saveToHistory() {
-    if (_receiptData == null) return;
+  if (_receiptData == null) return;
 
-    final now = DateTime.now();
-    const months = [
-      'Jan','Feb','Mar','Apr','Mei','Jun',
-      'Jul','Agu','Sep','Okt','Nov','Des'
-    ];
-    final dateStr = _receiptData!.date.isNotEmpty
-        ? _receiptData!.date
-        : '${now.day} ${months[now.month - 1]} ${now.year}';
+  final now = DateTime.now();
+  // ✅ normalisasi tanggal hasil OCR biar konsisten dgn HistoryScreen
+  final dateStr = TransactionService.instance.normalizeDate(_receiptData!.date);
 
-    TransactionService.instance.addTransaction(
-      TransactionItem(
-        name: _receiptData!.storeName,
-        date: dateStr,
-        people: '1 Orang',
-        amount: _receiptData!.total,
-        status: 'Pribadi',
-        icon: Icons.receipt_outlined,
-        color: const Color(0xFFE8F5E9),
-        iconColor: const Color(0xFF2E7D32),
-        type: TxType.pribadi,
-        subtitle: '$dateStr | ${_formatTime(now)}',
-        detail: _receiptData!.storeName,
-      ),
-    );
+  TransactionService.instance.addTransaction(
+    TransactionItem(
+      name: _receiptData!.storeName,
+      date: dateStr,
+      people: '1 Orang',
+      amount: _receiptData!.total,
+      status: 'Pribadi',
+      icon: Icons.receipt_outlined,
+      color: const Color(0xFFE8F5E9),
+      iconColor: const Color(0xFF2E7D32),
+      type: TxType.pribadi,
+      subtitle: '$dateStr | ${_formatTime(now)}',
+      detail: _receiptData!.storeName,
+    ),
+  );
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

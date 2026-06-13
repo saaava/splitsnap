@@ -1,16 +1,16 @@
-// lib/features/home/screens/home_screen.dart
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:splitsnap/core/services/transaction_service.dart';
 import 'package:splitsnap/core/theme/app_theme.dart';
-import 'package:splitsnap/features/auth/services/auth_service.dart';
 import 'package:splitsnap/features/auth/screens/login_screen.dart';
+import 'package:splitsnap/features/auth/services/auth_service.dart';
+import 'package:splitsnap/features/history/screens/history_screen.dart';
+import 'package:splitsnap/features/notifications/screens/notification_screen.dart';
+import 'package:splitsnap/features/profile/screens/profile_screen.dart';
 import 'package:splitsnap/features/scan/screens/scan_screen.dart';
 import 'package:splitsnap/features/split/screens/join_room_screen.dart';
-import 'package:splitsnap/features/history/screens/history_screen.dart';
-import 'package:splitsnap/features/profile/screens/profile_screen.dart';
 import 'package:splitsnap/features/wallet/screens/wallet_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -23,7 +23,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
   User? _user;
-  // 0=Notifikasi, 1=Home, 2=Profile
   int _selectedIndex = 1;
 
   @override
@@ -51,25 +50,17 @@ class _HomeScreenState extends State<HomeScreen> {
     if (index == _selectedIndex) return;
 
     if (index == 0) {
-      // Notifikasi — placeholder, belum ada screen
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Notifikasi akan segera hadir!',
-            style: GoogleFonts.poppins(fontSize: 12),
-          ),
-          backgroundColor: AppColors.primary,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      // ✅ Buka NotificationScreen beneran
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const NotificationScreen()),
+      ).then((_) => setState(() => _selectedIndex = 1));
       return;
     } else if (index == 2) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const ProfileScreen()),
-      ).then((_) {
-        setState(() => _selectedIndex = 1);
-      });
+      ).then((_) => setState(() => _selectedIndex = 1));
       return;
     }
 
@@ -371,63 +362,61 @@ class _HomeScreenState extends State<HomeScreen> {
                 return GestureDetector(
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const HistoryScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const HistoryScreen()),
                   ).then((_) => _refreshState()),
                   child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: tx.color,
-                          borderRadius: BorderRadius.circular(10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
-                        child: Icon(tx.icon, color: tx.iconColor, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              tx.name,
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: const Color(0xFF1A0A0F),
-                              ),
-                            ),
-                            Text(
-                              tx.amount > 0
-                                  ? _formatRupiah(tx.amount)
-                                  : tx.people,
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                color: const Color(0xFF6B4A55),
-                              ),
-                            ),
-                          ],
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: tx.color,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child:
+                              Icon(tx.icon, color: tx.iconColor, size: 20),
                         ),
-                      ),
-                      // ✅ Chevron dihapus
-                    ],
-                  ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                tx.name,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF1A0A0F),
+                                ),
+                              ),
+                              Text(
+                                tx.amount > 0
+                                    ? _formatRupiah(tx.amount)
+                                    : tx.people,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: const Color(0xFF6B4A55),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -448,8 +437,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'Rp ${buf.toString()}';
   }
 
-  // ✅ Navbar 3 tab: Notifikasi | Home | Profil
   Widget _buildBottomNav() {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -468,8 +458,54 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _bottomNavItem(Icons.notifications_outlined, 0, 'Notifikasi'),
+              // ✅ Tab Notifikasi dengan badge unread count dari Firestore
+              GestureDetector(
+                onTap: () => _onNavTap(0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _selectedIndex == 0
+                        ? const Color(0xFF6B0F2B).withOpacity(0.08)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: uid.isEmpty
+                        ? const Stream.empty()
+                        : FirebaseFirestore.instance
+                            .collection('notifications')
+                            .doc(uid)
+                            .collection('items')
+                            .where('read', isEqualTo: false)
+                            .snapshots(),
+                    builder: (context, snap) {
+                      final count = snap.data?.docs.length ?? 0;
+                      return Badge(
+                        isLabelVisible: count > 0,
+                        label: Text(
+                          count > 9 ? '9+' : '$count',
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.white),
+                        ),
+                        backgroundColor: Colors.red,
+                        child: Icon(
+                          Icons.notifications_outlined,
+                          color: _selectedIndex == 0
+                              ? const Color(0xFF6B0F2B)
+                              : const Color(0xFFAA8899),
+                          size: 26,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              // Tab Home
               _bottomNavItem(Icons.home_rounded, 1, 'Home'),
+
+              // Tab Profil
               _bottomNavItem(Icons.person_outline_rounded, 2, 'Profil'),
             ],
           ),
@@ -483,7 +519,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () => _onNavTap(index),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF6B0F2B).withOpacity(0.08)
