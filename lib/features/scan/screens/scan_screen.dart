@@ -9,6 +9,7 @@ import 'package:splitsnap/core/theme/app_theme.dart';
 import 'package:splitsnap/core/services/transaction_service.dart';
 import 'package:splitsnap/features/split/screens/room_share_screen.dart';
 import 'package:splitsnap/features/history/screens/history_screen.dart';
+import 'package:splitsnap/core/services/api_service.dart';
 
 class ReceiptItem {
   final String name;
@@ -455,28 +456,43 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  void _saveToHistory() {
-  if (_receiptData == null) return;
+  Future<void> _saveToHistory() async {
+    if (_receiptData == null) return;
 
-  final now = DateTime.now();
-  // ✅ normalisasi tanggal hasil OCR biar konsisten dgn HistoryScreen
-  final dateStr = TransactionService.instance.normalizeDate(_receiptData!.date);
+    final now = DateTime.now();
+    final dateStr = TransactionService.instance.normalizeDate(_receiptData!.date);
 
-  TransactionService.instance.addTransaction(
-    TransactionItem(
-      name: _receiptData!.storeName,
-      date: dateStr,
-      people: '1 Orang',
-      amount: _receiptData!.total,
-      status: 'Pribadi',
-      icon: Icons.receipt_outlined,
-      color: const Color(0xFFE8F5E9),
-      iconColor: const Color(0xFF2E7D32),
-      type: TxType.pribadi,
-      subtitle: '$dateStr | ${_formatTime(now)}',
-      detail: _receiptData!.storeName,
-    ),
-  );
+    TransactionService.instance.addTransaction(
+      TransactionItem(
+        name: _receiptData!.storeName,
+        date: dateStr,
+        people: '1 Orang',
+        amount: _receiptData!.total,
+        status: 'Pribadi',
+        icon: Icons.receipt_outlined,
+        color: const Color(0xFFE8F5E9),
+        iconColor: const Color(0xFF2E7D32),
+        type: TxType.pribadi,
+        subtitle: '$dateStr | ${_formatTime(now)}',
+        detail: _receiptData!.storeName,
+      ),
+    );
+
+    try {
+      await ApiService.instance.createTransaction(
+        type: 'pribadi',
+        name: _receiptData!.storeName,
+        date: dateStr,
+        people: '1 Orang',
+        amount: _receiptData!.total,
+        status: 'Pribadi',
+        subtitle: '$dateStr | ${_formatTime(now)}',
+        detail: _receiptData!.storeName,
+        items: _receiptData!.items.map((i) => i.toMap()).toList(),
+      );
+    } catch (e) {
+      debugPrint('API createTransaction error: $e');
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

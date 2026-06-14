@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:splitsnap/core/services/api_service.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -16,17 +18,28 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    // 1. Firebase register
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-
       await credential.user?.updateDisplayName(fullName);
       await credential.user?.reload();
-      // TIDAK signOut di sini, signOut dilakukan di register_screen
     } on FirebaseAuthException catch (e) {
       throw _handleFirebaseError(e);
+    }
+
+    // 2. Backend register (paralel, tidak ganggu Firebase)
+    try {
+      await ApiService.instance.register(
+        displayName: fullName,
+        email: email,
+        password: password,
+      );
+      debugPrint('Backend register ✅');
+    } catch (e) {
+      debugPrint('Backend register skip (mungkin sudah ada): $e');
     }
   }
 
@@ -35,14 +48,17 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    UserCredential? credential;
+
+    // 1. Firebase login
     for (int i = 0; i < 3; i++) {
       try {
-        return await _auth.signInWithEmailAndPassword(
+        credential = await _auth.signInWithEmailAndPassword(
           email: email,
           password: password,
         );
+        break;
       } on FirebaseAuthException catch (e) {
-        // Retry HANYA untuk masalah network, bukan salah credential
         if (i < 2 && e.code == 'network-request-failed') {
           await Future.delayed(Duration(seconds: i + 1));
           continue;
@@ -50,11 +66,35 @@ class AuthService {
         throw _handleFirebaseError(e);
       }
     }
-    throw 'Login gagal, coba lagi.';
+
+    // 2. Backend login untuk dapat JWT
+    try {
+      await ApiService.instance.login(email: email, password: password);
+      debugPrint('JWT Railway tersimpan ✅');
+    } catch (_) {
+      // User belum ada di backend, coba register dulu lalu login
+      try {
+        final displayName =
+            credential?.user?.displayName ?? email.split('@').first;
+        await ApiService.instance.register(
+          displayName: displayName,
+          email: email,
+          password: password,
+        );
+        await ApiService.instance.login(email: email, password: password);
+        debugPrint('Backend auto-register + JWT tersimpan ✅');
+      } catch (e) {
+        debugPrint('Backend login gagal (lanjut pakai Firebase saja): $e');
+      }
+    }
+
+    return credential;
   }
 
   // ─── Login dengan Google ─────────────────────────────────────────────────────
   Future<UserCredential?> signInWithGoogle() async {
+    UserCredential? credential;
+
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
@@ -66,22 +106,48 @@ class AuthService {
         throw 'Google Sign In gagal: idToken null. Pastikan SHA-1 sudah didaftarkan di Firebase.';
       }
 
-      final credential = GoogleAuthProvider.credential(
+      final firebaseCredential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-
-      return await _auth.signInWithCredential(credential);
+      credential = await _auth.signInWithCredential(firebaseCredential);
     } on FirebaseAuthException catch (e) {
       throw _handleFirebaseError(e);
     } catch (e) {
       if (e is String) rethrow;
       throw 'Google Sign In error: $e';
     }
+
+    // Backend login/register untuk Google user
+    final email = credential.user?.email ?? '';
+    final displayName =
+        credential.user?.displayName ?? email.split('@').first;
+    // password dummy unik per user untuk backend
+    final password = 'google_${credential.user?.uid ?? ''}';
+
+    try {
+      await ApiService.instance.login(email: email, password: password);
+      debugPrint('Google → JWT Railway tersimpan ✅');
+    } catch (_) {
+      try {
+        await ApiService.instance.register(
+          displayName: displayName,
+          email: email,
+          password: password,
+        );
+        await ApiService.instance.login(email: email, password: password);
+        debugPrint('Google → Backend auto-register + JWT tersimpan ✅');
+      } catch (e) {
+        debugPrint('Google → Backend login gagal: $e');
+      }
+    }
+
+    return credential;
   }
 
   // ─── Logout ──────────────────────────────────────────────────────────────────
   Future<void> signOut() async {
+    await ApiService.instance.logout(); // hapus JWT dari SharedPreferences
     await _googleSignIn.signOut();
     await _auth.signOut();
   }

@@ -1,8 +1,7 @@
-// lib/features/wallet/screens/wallet_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:splitsnap/core/services/transaction_service.dart';
+import 'package:splitsnap/core/services/api_service.dart';
 import 'package:splitsnap/core/theme/app_theme.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -14,6 +13,36 @@ class WalletScreen extends StatefulWidget {
 
 class _WalletScreenState extends State<WalletScreen> {
   final _service = TransactionService.instance;
+
+  // ── State dari API ────────────────────────────────────────────────
+  int _apiBalance = 0;
+  List<Map<String, dynamic>> _apiActivities = [];
+  bool _isLoadingApi = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromApi();
+  }
+
+  Future<void> _loadFromApi() async {
+    setState(() => _isLoadingApi = true);
+    try {
+      final balRes = await ApiService.instance.getBalance();
+      final actRes = await ApiService.instance.getWalletActivity();
+      if (!mounted) return;
+      setState(() {
+        _apiBalance = (balRes['balance'] as num?)?.toInt() ?? 0;
+        _apiActivities = List<Map<String, dynamic>>.from(
+          (actRes['activities'] as List?) ?? [],
+        );
+      });
+    } catch (e) {
+      debugPrint('Load wallet API error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingApi = false);
+    }
+  }
 
   String _formatRupiah(int amount) {
     if (amount == 0) return 'Rp 0';
@@ -66,19 +95,34 @@ class _WalletScreenState extends State<WalletScreen> {
                 style: GoogleFonts.poppins(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final amount = int.tryParse(
                     controller.text.replaceAll('.', '').replaceAll(',', ''),
                   ) ??
                   0;
               if (amount > 0) {
+                // local dulu biar UI langsung update
                 _service.topUpWallet(amount);
-                setState(() {});
                 Navigator.pop(context);
+
+                // kirim ke API
+                try {
+                  final res = await ApiService.instance.topUp(amount);
+                  debugPrint('API topUp OK: $res');
+                } catch (e) {
+                  debugPrint('API topUp error: $e');
+                }
+
+                // reload dari API supaya saldo & aktivitas sinkron
+                await _loadFromApi();
+
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Top up berhasil! +${_formatRupiahBalance(amount)}',
-                        style: GoogleFonts.poppins(fontSize: 12)),
+                    content: Text(
+                      'Top up berhasil! +${_formatRupiahBalance(amount)}',
+                      style: GoogleFonts.poppins(fontSize: 12),
+                    ),
                     backgroundColor: AppColors.success,
                     duration: const Duration(seconds: 2),
                   ),
@@ -112,7 +156,7 @@ class _WalletScreenState extends State<WalletScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Saldo tersedia: ${_formatRupiahBalance(_service.walletBalance)}',
+              'Saldo tersedia: ${_formatRupiahBalance(_apiBalance)}',
               style: GoogleFonts.poppins(
                   fontSize: 12, color: AppColors.textSecondary),
             ),
@@ -139,15 +183,28 @@ class _WalletScreenState extends State<WalletScreen> {
                 style: GoogleFonts.poppins(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final amount = int.tryParse(
                     controller.text.replaceAll('.', '').replaceAll(',', ''),
                   ) ??
                   0;
               if (amount > 0) {
                 final ok = _service.withdrawWallet(amount);
-                setState(() {});
                 Navigator.pop(context);
+
+                if (ok) {
+                  try {
+                    final res = await ApiService.instance.withdraw(amount);
+                    debugPrint('API withdraw OK: $res');
+                  } catch (e) {
+                    debugPrint('API withdraw error: $e');
+                  }
+
+                  // reload dari API
+                  await _loadFromApi();
+                }
+
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -156,7 +213,8 @@ class _WalletScreenState extends State<WalletScreen> {
                           : 'Saldo tidak cukup.',
                       style: GoogleFonts.poppins(fontSize: 12),
                     ),
-                    backgroundColor: ok ? AppColors.primary : AppColors.error,
+                    backgroundColor:
+                        ok ? AppColors.primary : AppColors.error,
                     duration: const Duration(seconds: 2),
                   ),
                 );
@@ -176,10 +234,42 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
+  // ── Helper tampilkan aktivitas dari API ───────────────────────────
+  IconData _iconForType(String type) {
+    switch (type) {
+      case 'topUp':
+        return Icons.add_rounded;
+      case 'withdraw':
+        return Icons.remove_rounded;
+      default:
+        return Icons.receipt_long_outlined;
+    }
+  }
+
+  Color _iconBgForType(String type) {
+    switch (type) {
+      case 'topUp':
+        return const Color(0xFFE8F5E9);
+      case 'withdraw':
+        return const Color(0xFFFFEBEE);
+      default:
+        return const Color(0xFFFFF3E0);
+    }
+  }
+
+  Color _iconColorForType(String type) {
+    switch (type) {
+      case 'topUp':
+        return const Color(0xFF2E7D32);
+      case 'withdraw':
+        return const Color(0xFF6B0F2B);
+      default:
+        return const Color(0xFFE65100);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final txList = _service.walletTransactions;
-
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: SafeArea(
@@ -203,6 +293,13 @@ class _WalletScreenState extends State<WalletScreen> {
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
+                  ),
+                  const Spacer(),
+                  // tombol refresh manual
+                  IconButton(
+                    onPressed: _loadFromApi,
+                    icon: const Icon(Icons.refresh,
+                        color: Colors.white, size: 20),
                   ),
                 ],
               ),
@@ -238,14 +335,28 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      _formatRupiahBalance(_service.walletBalance),
-                      style: GoogleFonts.poppins(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    _isLoadingApi
+                        ? const SizedBox(
+                            height: 36,
+                            child: Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: AppColors.primary,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Text(
+                            _formatRupiahBalance(_apiBalance),
+                            style: GoogleFonts.poppins(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
                     const SizedBox(height: 10),
                     Text(
                       'SplitSnap Wallet',
@@ -348,7 +459,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
             const SizedBox(height: 20),
 
-            // ── Activity list ─────────────────────────────────────────
+            // ── Activity list dari API ────────────────────────────────
             Expanded(
               child: Container(
                 decoration: const BoxDecoration(
@@ -363,141 +474,167 @@ class _WalletScreenState extends State<WalletScreen> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Aktivitas Terakhir',
-                            style: GoogleFonts.poppins(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1A0A0F),
-                            ),
-                          ),
-                          Text(
-                            'Lihat Semua',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.primary,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        'Aktivitas Terakhir',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF1A0A0F),
+                        ),
                       ),
                     ),
                     Expanded(
-                      child: txList.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.receipt_long_outlined,
-                                      size: 48, color: Colors.grey[300]),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'Belum ada aktivitas',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      color: Colors.grey[400],
-                                    ),
-                                  ),
-                                ],
+                      child: _isLoadingApi
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                color: AppColors.primary,
                               ),
                             )
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                              itemCount: txList.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (context, i) {
-                                final tx = txList[i];
-                                final isPositive = tx.amount > 0;
-                                final isPaid = tx.status == 'Lunas';
-                                return Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(14),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.04),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
+                          : _apiActivities.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.receipt_long_outlined,
+                                          size: 48,
+                                          color: Colors.grey[300]),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'Belum ada aktivitas',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 14,
+                                          color: Colors.grey[400],
+                                        ),
                                       ),
                                     ],
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 44,
-                                        height: 44,
-                                        decoration: BoxDecoration(
-                                          color: tx.iconBg,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: Icon(tx.icon,
-                                            color: tx.iconColor, size: 22),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              tx.title,
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color: const Color(0xFF1A0A0F),
-                                              ),
-                                            ),
-                                            Text(
-                                              '${tx.date} · ${tx.time}',
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 11,
-                                                color: AppColors.textSecondary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            isPaid
-                                                ? 'Lunas'
-                                                : 'Pending',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w500,
-                                              color: isPaid
-                                                  ? AppColors.success
-                                                  : const Color(0xFFE65100),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            _formatRupiah(tx.amount),
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w700,
-                                              color: isPositive
-                                                  ? AppColors.success
-                                                  : AppColors.primary,
-                                            ),
+                                )
+                              : ListView.separated(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      16, 0, 16, 20),
+                                  itemCount: _apiActivities.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 10),
+                                  itemBuilder: (context, i) {
+                                    final tx = _apiActivities[i];
+                                    final type =
+                                        tx['type'] as String? ?? '';
+                                    final title =
+                                        tx['title'] as String? ?? '';
+                                    final date =
+                                        tx['date'] as String? ?? '';
+                                    final time =
+                                        tx['time'] as String? ?? '';
+                                    final amount =
+                                        (tx['amount'] as num?)?.toInt() ??
+                                            0;
+                                    final status =
+                                        tx['status'] as String? ?? '';
+                                    final isPositive = amount > 0;
+                                    final isPaid = status == 'Lunas';
+
+                                    return Container(
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius:
+                                            BorderRadius.circular(14),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black
+                                                .withOpacity(0.04),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 44,
+                                            height: 44,
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  _iconBgForType(type),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      12),
+                                            ),
+                                            child: Icon(
+                                              _iconForType(type),
+                                              color:
+                                                  _iconColorForType(type),
+                                              size: 22,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment
+                                                      .start,
+                                              children: [
+                                                Text(
+                                                  title,
+                                                  style:
+                                                      GoogleFonts.poppins(
+                                                    fontSize: 13,
+                                                    fontWeight:
+                                                        FontWeight.w600,
+                                                    color: const Color(
+                                                        0xFF1A0A0F),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '$date · $time',
+                                                  style:
+                                                      GoogleFonts.poppins(
+                                                    fontSize: 11,
+                                                    color: AppColors
+                                                        .textSecondary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              Text(
+                                                isPaid
+                                                    ? 'Lunas'
+                                                    : 'Pending',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 11,
+                                                  fontWeight:
+                                                      FontWeight.w500,
+                                                  color: isPaid
+                                                      ? AppColors.success
+                                                      : const Color(
+                                                          0xFFE65100),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                _formatRupiah(amount),
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 13,
+                                                  fontWeight:
+                                                      FontWeight.w700,
+                                                  color: isPositive
+                                                      ? AppColors.success
+                                                      : AppColors.primary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
                     ),
                   ],
                 ),
