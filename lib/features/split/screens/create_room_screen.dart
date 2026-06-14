@@ -22,7 +22,6 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
   late final String _roomCode;
   bool _reminderSent = false;
 
-  // Peserta — index 0 = host (current user)
   final List<Map<String, dynamic>> _participants = [
     {'name': 'Novel', 'initials': 'NO', 'isPaid': true, 'status': 'Host', 'isHost': true},
     {'name': 'Bima', 'initials': 'BI', 'isPaid': true, 'status': 'Lunas', 'isHost': false},
@@ -30,7 +29,6 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
     {'name': 'Irene', 'initials': 'IR', 'isPaid': false, 'status': 'Belum', 'isHost': false},
   ];
 
-  // Distribusi item ke peserta (simple round-robin dari items widget)
   late final List<Map<String, dynamic>> _bills;
 
   @override
@@ -47,7 +45,6 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
   }
 
   List<Map<String, dynamic>> _buildBills() {
-    // Distribusi items ke 4 peserta secara round-robin
     final result = List.generate(
         _participants.length,
         (i) => {

@@ -12,13 +12,11 @@ class AuthService {
   Stream<User?> get userStream => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
 
-  // ─── Register dengan Email & Password ───────────────────────────────────────
   Future<void> registerWithEmail({
     required String fullName,
     required String email,
     required String password,
   }) async {
-    // 1. Firebase register
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -30,7 +28,6 @@ class AuthService {
       throw _handleFirebaseError(e);
     }
 
-    // 2. Backend register (paralel, tidak ganggu Firebase)
     try {
       await ApiService.instance.register(
         displayName: fullName,
@@ -43,14 +40,12 @@ class AuthService {
     }
   }
 
-  // ─── Login dengan Email & Password ──────────────────────────────────────────
   Future<UserCredential?> loginWithEmail({
     required String email,
     required String password,
   }) async {
     UserCredential? credential;
 
-    // 1. Firebase login
     for (int i = 0; i < 3; i++) {
       try {
         credential = await _auth.signInWithEmailAndPassword(
@@ -67,12 +62,10 @@ class AuthService {
       }
     }
 
-    // 2. Backend login untuk dapat JWT
     try {
       await ApiService.instance.login(email: email, password: password);
       debugPrint('JWT Railway tersimpan ✅');
     } catch (_) {
-      // User belum ada di backend, coba register dulu lalu login
       try {
         final displayName =
             credential?.user?.displayName ?? email.split('@').first;
@@ -91,7 +84,6 @@ class AuthService {
     return credential;
   }
 
-  // ─── Login dengan Google ─────────────────────────────────────────────────────
   Future<UserCredential?> signInWithGoogle() async {
     UserCredential? credential;
 
@@ -118,11 +110,9 @@ class AuthService {
       throw 'Google Sign In error: $e';
     }
 
-    // Backend login/register untuk Google user
     final email = credential.user?.email ?? '';
     final displayName =
         credential.user?.displayName ?? email.split('@').first;
-    // password dummy unik per user untuk backend
     final password = 'google_${credential.user?.uid ?? ''}';
 
     try {
@@ -145,14 +135,12 @@ class AuthService {
     return credential;
   }
 
-  // ─── Logout ──────────────────────────────────────────────────────────────────
   Future<void> signOut() async {
-    await ApiService.instance.logout(); // hapus JWT dari SharedPreferences
+    await ApiService.instance.logout(); 
     await _googleSignIn.signOut();
     await _auth.signOut();
   }
 
-  // ─── Handle Firebase Error ───────────────────────────────────────────────────
   String _handleFirebaseError(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':

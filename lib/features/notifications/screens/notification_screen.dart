@@ -81,9 +81,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
     await batch.commit();
   }
 
-  /// "Bayar Sekarang" — tap dari notif payment_reminder.
-  /// Ambil data room (storeName, items, date) dari Firestore lalu buka
-  /// BillConfirmationScreen langsung untuk konfirmasi pembayaran.
   Future<void> _onBayarSekarang(Map<String, dynamic> data, String docId) async {
     final roomCode = data['roomCode'] as String? ?? '';
     if (roomCode.isEmpty) return;
@@ -350,7 +347,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
           ]),
 
-          // ✅ Tombol aksi khusus payment_reminder
           if (type == 'payment_reminder') ...[
             const SizedBox(height: 12),
             Row(children: [

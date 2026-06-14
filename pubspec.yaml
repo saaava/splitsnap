@@ -58,9 +58,17 @@ dependencies:
   # googleapis_auth: ^1.4.1
   http: ^1.2.0
 
+flutter_launcher_icons:
+  android: true
+  # ios: true
+  image_path: "assets/icon/splitsnap_logo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/splitsnap_logo.png"
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

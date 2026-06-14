@@ -55,7 +55,6 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
 
-      // 1. Buat room di Firestore
       await RoomService.createRoom(
         roomCode: _roomCode,
         storeName: widget.storeName,
@@ -64,7 +63,6 @@ class _RoomShareScreenState extends State<RoomShareScreen> {
         createdBy: uid,
       );
 
-      // 2. ✅ Tambahkan host (pembuat bill) ke participants dengan isHost: true
       await RoomService.addHostToRoom(roomCode: _roomCode);
     } catch (e) {
       if (mounted) {

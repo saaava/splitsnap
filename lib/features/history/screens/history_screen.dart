@@ -1,5 +1,3 @@
-// lib/features/history/screens/history_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:splitsnap/core/services/transaction_service.dart';
@@ -13,14 +11,11 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  // ── Filter state ──────────────────────────────────────────────────
-  int _tabIndex = 0; // 0=Semua, 1=Pribadi, 2=Split Bill
-  // Date range: default 7 hari terakhir
+  int _tabIndex = 0; 
   DateTime _rangeEnd = DateTime.now();
   DateTime _rangeStart = DateTime.now().subtract(const Duration(days: 6));
   bool _isCustomRange = false;
 
-  // ── Helpers ───────────────────────────────────────────────────────
   String _formatRupiah(int amount) {
     if (amount == 0) return 'Rp 0';
     final str = amount.toString();
@@ -32,9 +27,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return 'Rp ${buf.toString()}';
   }
 
-  /// Parse 'DD Mon YYYY' → DateTime (dari TransactionService._formatDate)
-  /// Kalau gagal parse (format tanggal dari OCR struk gak dikenal),
-  /// fallback ke hari ini supaya transaksi tetap muncul di Riwayat.
   DateTime _parseDate(String dateStr) {
     const months = {
       'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4,
@@ -59,19 +51,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return !dt.isBefore(start) && !dt.isAfter(end);
   }
 
-  // ── Filtered list ─────────────────────────────────────────────────
   List<TransactionItem> get _filtered {
     final all = TransactionService.instance.all;
     return all.where((tx) {
-      // Tab filter
       if (_tabIndex == 1 && tx.type != TxType.pribadi) return false;
       if (_tabIndex == 2 && tx.type != TxType.splitBill) return false;
-      // Date filter
       return _inRange(_parseDate(tx.date));
     }).toList();
   }
 
-  // ── Chart data: amount per day in range ──────────────────────────
   List<_DayBar> _buildChartData() {
     final days = List.generate(7, (i) {
       return _rangeStart.add(Duration(days: i));
@@ -99,7 +87,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   int get _totalPengeluaran =>
       _filtered.fold(0, (sum, tx) => sum + tx.amount);
 
-  // ── Date picker ───────────────────────────────────────────────────
   Future<void> _pickDateRange() async {
     final now = DateTime.now();
     final picked = await showDateRangePicker(
@@ -119,7 +106,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
     if (picked != null) {
-      // Clamp to max 7 days
       var end = picked.end;
       var start = picked.start;
       if (end.difference(start).inDays > 6) {
@@ -148,7 +134,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return '${df(_rangeStart)} – ${df(_rangeEnd)}';
   }
 
-  // ── Build ─────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final filtered = _filtered;
@@ -176,7 +161,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: Column(
         children: [
 
-          // ── Time range filter ──────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: Row(
@@ -220,13 +204,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
 
-          // ── Scrollable content ─────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // ── Chart card ───────────────────────────────
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
@@ -268,7 +250,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
                   const SizedBox(height: 14),
 
-                  // ── Transaction list ─────────────────────────
                   if (filtered.isEmpty)
                     _buildEmptyState()
                   else
@@ -294,7 +275,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // ── Row item, gaya sama seperti "Transaksi Terbaru" di Home ───────
   Widget _buildTxRow(TransactionItem tx) {
     final subtitleText = tx.type == TxType.pribadi
         ? (tx.subtitle.isNotEmpty ? tx.subtitle : tx.date)
@@ -458,8 +438,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 }
-
-// ── Bar chart widget ──────────────────────────────────────────────────────
 
 class _DayBar {
   final String label;

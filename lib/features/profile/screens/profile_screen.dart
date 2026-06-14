@@ -1,12 +1,3 @@
-// lib/features/profile/screens/profile_screen.dart
-//
-// Stats terhubung ke TransactionService:
-//   - Jumlah Split Bill  → TransactionService.instance.totalTransaksi
-//   - Total Nominal      → TransactionService.instance.totalNominal
-//   - Saldo Wallet       → TransactionService.instance.walletBalance
-//
-// Aktivitas Terakhir gabungan: wallet transactions + split bill transactions
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -248,7 +239,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          // ── Aktivitas Wallet Terbaru ──────────────────────────────
           if (walletTx.isNotEmpty) ...[
             _sectionHeader(
               title: 'Aktivitas Wallet',
@@ -365,7 +355,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 20),
           ],
 
-          // ── Riwayat Split Bill ──────────────────────────────────
           _sectionHeader(
             title: 'Riwayat Split Bill',
             actionLabel: 'Lihat Semua',
@@ -378,28 +367,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildSplitBillPreview(),
 
           const SizedBox(height: 20),
-
-          // ── Menu profil ───────────────────────────────────────────
-          // _menuTile(
-          //   icon: Icons.person_outline_rounded,
-          //   label: 'Edit Profil',
-          //   onTap: () {},
-          // ),
-          // _menuTile(
-          //   icon: Icons.notifications_outlined,
-          //   label: 'Notifikasi',
-          //   onTap: () {},
-          // ),
-          // _menuTile(
-          //   icon: Icons.security_outlined,
-          //   label: 'Keamanan Akun',
-          //   onTap: () {},
-          // ),
-          // _menuTile(
-          //   icon: Icons.help_outline_rounded,
-          //   label: 'Bantuan & FAQ',
-          //   onTap: () {},
-          // ),
         ],
       ),
     );

@@ -49,7 +49,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
 
-      // SignOut di sini setelah register selesai sempurna
       await _authService.signOut();
 
       if (!mounted) return;
@@ -65,7 +64,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
 
-      // Tunggu sebentar supaya Firebase benar-benar selesai signOut
       await Future.delayed(const Duration(seconds: 2));
 
       if (!mounted) return;

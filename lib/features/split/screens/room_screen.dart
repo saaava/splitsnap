@@ -30,7 +30,6 @@ class RoomScreen extends StatefulWidget {
 class _RoomScreenState extends State<RoomScreen> {
   bool _isSendingReminder = false;
 
-  // uid peserta belum lunas yang dicentang untuk dikirim reminder
   final Set<String> _selectedUids = {};
 
   String get _currentUid => FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -54,9 +53,6 @@ class _RoomScreenState extends State<RoomScreen> {
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 
-  /// Sinkronkan _selectedUids dengan daftar peserta yang belum lunas
-  /// (uid yang sekarang sudah lunas / sudah tidak ada -> dibuang dari seleksi,
-  /// uid belum lunas yang baru -> otomatis ikut tercentang).
   void _syncSelection(List<Map<String, dynamic>> participants) {
     final unpaidUids = participants
         .where((p) =>
@@ -65,15 +61,12 @@ class _RoomScreenState extends State<RoomScreen> {
         .map((p) => p['uid'] as String? ?? '')
         .toSet();
 
-    // hapus uid yang sudah lunas / keluar room
     _selectedUids.removeWhere((uid) => !unpaidUids.contains(uid));
-    // tambahkan uid belum lunas baru, default tercentang
     for (final uid in unpaidUids) {
       _selectedUids.add(uid);
     }
   }
 
-  /// Kirim pengingat hanya ke peserta yang dicentang & belum lunas
   Future<void> _sendReminder(List<Map<String, dynamic>> participants) async {
     if (participants.length <= 1) {
       _showSnack('Belum ada peserta yang join.', AppColors.primary);
@@ -94,7 +87,6 @@ class _RoomScreenState extends State<RoomScreen> {
 
     setState(() => _isSendingReminder = true);
 
-    // Susun data bills (uid + total tagihan) dari selectedItems peserta
     final bills = selectedParticipants.map((p) {
       final selectedItems = List<Map<String, dynamic>>.from(
         (p['selectedItems'] as List<dynamic>? ?? []).map(
@@ -156,7 +148,6 @@ class _RoomScreenState extends State<RoomScreen> {
     );
   }
 
-  /// Participant klik "Konfirmasi Pembayaran" → buka BillConfirmationScreen
   Future<void> _goToConfirmPayment(
     Map<String, dynamic> participant,
     int total,
@@ -178,7 +169,6 @@ class _RoomScreenState extends State<RoomScreen> {
         ),
       ),
     );
-    // RoomScreen auto-update via StreamBuilder (Firestore realtime)
   }
 
   @override
@@ -449,8 +439,6 @@ class _RoomScreenState extends State<RoomScreen> {
 
             final isMe = uid == _currentUid;
             final hasSelected = selectedItems.isNotEmpty;
-
-            // ✅ checkbox hanya untuk host, untuk peserta lain yg belum lunas
             final showCheckbox = isHostView && !isHost && !isPaid;
 
             return Column(

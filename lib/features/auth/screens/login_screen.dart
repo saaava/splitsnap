@@ -45,7 +45,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (result != null && mounted) {
-        // ✅ Navigasi langsung ke Home (tanpa named route)
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const HomeScreen()),
           (route) => false,
@@ -71,7 +70,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       
-      // ✅ Navigasi langsung ke Home
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const HomeScreen()),

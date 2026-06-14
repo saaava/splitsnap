@@ -122,7 +122,6 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
 
     setState(() => _isUploading = true);
 
-    // ✅ markPaid di Firestore agar RoomScreen realtime langsung update
     if (widget.roomCode.isNotEmpty && widget.participantUid.isNotEmpty) {
       try {
         await RoomService.markPaid(
@@ -136,7 +135,6 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
     if (!mounted) return;
     setState(() => _isUploading = false);
 
-    // Simpan ke TransactionService
     TransactionService.instance.addTransaction(
       TransactionItem(
         name: widget.storeName,
@@ -174,8 +172,6 @@ class _BillConfirmationScreenState extends State<BillConfirmationScreen> {
       ),
     );
 
-    // ✅ Pop kembali ke RoomScreen (bukan pushAndRemoveUntil)
-    // RoomScreen akan auto-refresh status via StreamBuilder
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     Navigator.of(context).pop(true); // return true = konfirmasi berhasil

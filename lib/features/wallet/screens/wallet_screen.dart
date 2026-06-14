@@ -14,7 +14,6 @@ class WalletScreen extends StatefulWidget {
 class _WalletScreenState extends State<WalletScreen> {
   final _service = TransactionService.instance;
 
-  // ── State dari API ────────────────────────────────────────────────
   int _apiBalance = 0;
   List<Map<String, dynamic>> _apiActivities = [];
   bool _isLoadingApi = true;
@@ -234,7 +233,6 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // ── Helper tampilkan aktivitas dari API ───────────────────────────
   IconData _iconForType(String type) {
     switch (type) {
       case 'topUp':
@@ -275,7 +273,6 @@ class _WalletScreenState extends State<WalletScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── Top bar ──────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Row(
@@ -307,7 +304,6 @@ class _WalletScreenState extends State<WalletScreen> {
 
             const SizedBox(height: 20),
 
-            // ── Balance card ─────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Container(
@@ -387,7 +383,6 @@ class _WalletScreenState extends State<WalletScreen> {
 
             const SizedBox(height: 16),
 
-            // ── Top Up / Withdraw buttons ─────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -459,7 +454,6 @@ class _WalletScreenState extends State<WalletScreen> {
 
             const SizedBox(height: 20),
 
-            // ── Activity list dari API ────────────────────────────────
             Expanded(
               child: Container(
                 decoration: const BoxDecoration(

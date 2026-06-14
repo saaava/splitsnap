@@ -13,7 +13,6 @@ import 'package:splitsnap/features/scan/screens/scan_screen.dart';
 import 'package:splitsnap/features/split/screens/join_room_screen.dart';
 import 'package:splitsnap/features/wallet/screens/wallet_screen.dart';
 import 'package:splitsnap/core/services/notification_service.dart';
-import 'package:splitsnap/features/history/screens/api_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -53,7 +52,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (index == _selectedIndex) return;
 
     if (index == 0) {
-      // ✅ Buka NotificationScreen beneran
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const NotificationScreen()),
@@ -227,14 +225,6 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(builder: (_) => const HistoryScreen()),
             ).then((_) => _refreshState()),
       },
-      // {
-      //   'label': 'Riwayat API',
-      //   'icon': Icons.cloud_outlined,
-      //   'onTap': () => Navigator.push(
-      //         context,
-      //         MaterialPageRoute(builder: (_) => const ApiHistoryScreen()),
-      //       ).then((_) => _refreshState()),
-      // },
     ];
 
     return Padding(

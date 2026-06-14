@@ -13,7 +13,6 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // ✅ Setup permission, channel, listener — TIDAK butuh login.
   await NotificationService.instance.init();
 
   runApp(const SplitSnapApp());
@@ -81,12 +80,8 @@ class _AuthGateState extends State<AuthGate> {
           return const LoginScreen();
         }
 
-        // ✅ Simpan / refresh token FCM setiap kali ada user yang login,
-        // tapi cukup sekali per sesi (hindari spam tiap rebuild widget).
         if (_lastSavedUid != user.uid) {
           _lastSavedUid = user.uid;
-          // Jalankan setelah frame ini selesai agar tidak conflict
-          // dengan build().
           WidgetsBinding.instance.addPostFrameCallback((_) {
             NotificationService.instance.saveToken();
           });

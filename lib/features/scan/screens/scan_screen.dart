@@ -497,7 +497,7 @@ class _ScanScreenState extends State<ScanScreen> with TickerProviderStateMixin {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Struk disimpan ke Riwayat ✅',
+          'Struk disimpan ke Riwayat',
           style: GoogleFonts.poppins(fontSize: 12),
         ),
         backgroundColor: AppColors.success,
