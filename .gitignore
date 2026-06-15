@@ -1,6 +1,11 @@
 # Service account key (jangan di-push)
 lib/core/services/fcm_service.dart
 
+storePassword=splitsnap123
+keyPassword=splitsnap123
+keyAlias=upload
+storeFile=app/upload-keystore.jks
+
 # Miscellaneous
 *.class
 *.log

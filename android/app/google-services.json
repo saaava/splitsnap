@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "97443520596-foj5djtjb4lm3l2f6s5e06qh53ro8i6b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.splitsnap",
+            "certificate_hash": "0640660356ac9b18d77ac81f5227a15e1eb90679"
+          }
+        },
+        {
           "client_id": "97443520596-oq39e492qlijuk7jp3qtobqjbsmjm607.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -63,6 +71,14 @@
           "android_info": {
             "package_name": "com.splitsnap.app",
             "certificate_hash": "0640660356ac9b18d77ac81f5227a15e1eb90679"
+          }
+        },
+        {
+          "client_id": "97443520596-8hs6a32mnkg9ee5pbl3huh1l8fibpl7a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.splitsnap.app",
+            "certificate_hash": "b66b251bdbd46bab597e8679413f1ba618ae09d8"
           }
         },
         {
